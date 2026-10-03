@@ -88,9 +88,51 @@
   },
   ocr: {
     enabled: ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold', 'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed'],
-    modes: { turtle: 'auto', lord: 'auto', tower: 'manual' },
+    // `modes` adalah Field Lock PER FIELD dan ini yang bentuknya disimpan server
+    // (lihat normalizeOcrState di worker.mjs: key yang bukan nama field dibuang).
+    modes: {},
+    // `objectiveModes` adalah mode per objective {turtle, lord, tower} yang mengikat select
+    // "Mode Turtle/Lord/Tower" dan tombol +/- di section Objective. Keduanya tidak boleh
+    // berbagi satu key: objective menulis {turtle,lord,tower} sementara server menulis
+    // {turtleBlue,...}. Begitu keduanya berbagi key, config OCR dari server menimpa nilai
+    // objective jadi select Mode Turtle kosong, lalu `data.get('turtleMode') || 'auto'`
+    // diam-diam mengembalikannya ke auto dan tombol +/- mati.
+    objectiveModes: { turtle: 'auto', lord: 'auto', tower: 'manual' },
   },
 };
+
+// Nilai objective mode yang selalu sah. Dipakai populateForm supaya tidak pernah menulis
+// nilai yang tidak ada di <option> mana pun; browser akan menyisakan selectedIndex -1 dan
+// select tampil kosong kalau itu terjadi.
+function readObjectiveModes(config) {
+  const saved = config?.ocr?.objectiveModes || {};
+  return {
+    turtle: saved.turtle === 'manual' ? 'manual' : 'auto',
+    lord: saved.lord === 'manual' ? 'manual' : 'auto',
+    tower: saved.tower === 'auto' ? 'auto' : 'manual',
+  };
+}
+
+// ObjectiveModes hanya hidup di localStorage, jadi pilihan "Manual" operator hilang begitu
+// halaman dibuka di browser lain. Field Lock per-field disimpan di server, jadi dari situ
+// mode objective bisa diturunkan kembali: kalau kedua field tim untuk satu objective
+// dikunci, objective itu manual. Nilai lokal tetap menang supaya pilihan operator di
+// browser ini tidak ditimpa oleh data server yang lebih lama.
+function seedObjectiveModes(ocr, remoteModes) {
+  const current = readObjectiveModes({ ocr });
+  const modes = remoteModes || {};
+  const locked = (field) => modes[field] === 'lock' || modes[field] === 'manual';
+  const seeded = { ...current };
+  ['turtle', 'lord', 'tower'].forEach((objective) => {
+    const fields = [`${objective}Blue`, `${objective}Red`];
+    if (!fields.some((field) => modes[field])) return;
+    const manual = fields.every((field) => locked(field));
+    // Default hanya ditulis kalau objective ini belum pernah disentuh operator.
+    if (ocr?.objectiveModes?.[objective]) return;
+    seeded[objective] = manual ? 'manual' : 'auto';
+  });
+  return seeded;
+}
 
 const textStyleItems = [
   'tournamentName', 'roundName', 'blueName', 'blueKills', 'matchTimer', 'redName', 'redKills',
@@ -823,16 +865,18 @@ const ocrFieldLabels = {
 
 function ocrFieldModes() {
   const saved = getConfig().ocr || {};
+  // Table Field Lock (per-field) dan select objective (per-objective) hidup di key
+  // berbeda. Versi lama membaca `saved.modes.turtle` dari object yang isinya per-field,
+  // jadi turunannya selalu undefined dan memilih "Manual" untuk Turtle/Lord tidak
+  // pernah tampil di table.
   const modes = { ...(saved.modes || {}) };
-  if (saved.modes?.turtle) {
-    modes.turtleBlue = modes.turtleRed = saved.modes.turtle === 'auto' ? 'auto' : 'lock';
-  }
-  if (saved.modes?.lord) {
-    modes.lordBlue = modes.lordRed = saved.modes.lord === 'auto' ? 'auto' : 'lock';
-  }
-  if (saved.modes?.tower) {
-    modes.towerBlue = modes.towerRed = saved.modes.tower === 'auto' ? 'auto' : 'lock';
-  }
+  const objectives = readObjectiveModes({ ocr: saved });
+  ['turtle', 'lord', 'tower'].forEach((objective) => {
+    if (modes[`${objective}Blue`] || modes[`${objective}Red`]) return;
+    const mode = objectives[objective] === 'auto' ? 'auto' : 'lock';
+    modes[`${objective}Blue`] = mode;
+    modes[`${objective}Red`] = mode;
+  });
   return modes;
 }
 
@@ -1059,7 +1103,8 @@ function getConfig() {
     ocr: {
       ...defaultConfig.ocr,
       ...(saved?.ocr || {}),
-      modes: { ...defaultConfig.ocr.modes, ...(saved?.ocr?.modes || {}) },
+      modes: { ...(saved?.ocr?.modes || {}) },
+      objectiveModes: readObjectiveModes(saved),
     },
   };
   config.headerImage = saved?.headerImage || saved?.referenceImage || '';
@@ -1507,10 +1552,12 @@ function readFormValues() {
   config.match.towerRed = Number(data.get('towerRed') || 0);
   config.match.bo2 = readBo2FromDom();
 
-  config.ocr.modes = {
-    turtle: data.get('turtleMode') || 'auto',
-    lord: data.get('lordMode') || 'auto',
-    tower: data.get('towerMode') || 'manual',
+  // Mode objective disimpan di key sendiri, bukan di `modes`. `modes` milik Field Lock
+  // per-field dan bentuknya sudah tentu tidak cocok di sini.
+  config.ocr.objectiveModes = {
+    turtle: data.get('turtleMode') === 'manual' ? 'manual' : 'auto',
+    lord: data.get('lordMode') === 'manual' ? 'manual' : 'auto',
+    tower: data.get('towerMode') === 'auto' ? 'auto' : 'manual',
   };
 
   config.style.fontFamily = data.get('fontFamily') || config.style.fontFamily;
@@ -1525,9 +1572,9 @@ function readFormValues() {
   });
 
   const enabled = ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold'];
-  if (config.ocr.modes.turtle === 'auto') enabled.push('turtleBlue', 'turtleRed');
-  if (config.ocr.modes.lord === 'auto') enabled.push('lordBlue', 'lordRed');
-  if (config.ocr.modes.tower === 'auto') enabled.push('towerBlue', 'towerRed');
+  if (config.ocr.objectiveModes.turtle === 'auto') enabled.push('turtleBlue', 'turtleRed');
+  if (config.ocr.objectiveModes.lord === 'auto') enabled.push('lordBlue', 'lordRed');
+  if (config.ocr.objectiveModes.tower === 'auto') enabled.push('towerBlue', 'towerRed');
   config.ocr.enabled = enabled;
 
   return readCustomItems(config);
@@ -1555,16 +1602,17 @@ function populateForm(config) {
   form.elements.lordRed.value = config.match.lordRed;
   form.elements.towerBlue.value = config.match.towerBlue;
   form.elements.towerRed.value = config.match.towerRed;
-  form.elements.turtleMode.value = config.ocr.modes.turtle;
-  form.elements.lordMode.value = config.ocr.modes.lord;
-  form.elements.towerMode.value = config.ocr.modes.tower;
+  const objectiveModes = readObjectiveModes(config);
+  form.elements.turtleMode.value = objectiveModes.turtle;
+  form.elements.lordMode.value = objectiveModes.lord;
+  form.elements.towerMode.value = objectiveModes.tower;
   form.elements.fontFamily.value = config.style.fontFamily;
 
   textStyleItems.forEach((key) => {
     form.elements[`itemSize_${key}`].value = config.style.items[key].size;
     form.elements[`itemColor_${key}`].value = config.style.items[key].color;
   });
-  updateManualControls(config.ocr.modes);
+  updateManualControls(objectiveModes);
   renderCustomItemEditors(config.customItems);
   writeBo2ToDom(config.match.bo2);
   renderOcrFieldRows();
@@ -1572,8 +1620,13 @@ function populateForm(config) {
 }
 
 function updateManualControls(modes) {
+  // `modes` selalu dinormalisasi dulu supaya tidak mungkin undefined. Versi lama membaca
+  // config.ocr.modes langsung, dan setelah config OCR server dimuat key {turtle,lord,tower}
+  // sudah hilang dari sana: tombol turtle/lord ikut terkunci, atau lebih buruk tampak aktif
+  // lalu mati begitu diklik karena guard klik menolaknya sebagai 'auto'.
+  const resolved = readObjectiveModes({ ocr: { objectiveModes: modes } });
   ['turtle', 'lord', 'tower'].forEach((objective) => {
-    const automatic = modes[objective] === 'auto';
+    const automatic = resolved[objective] === 'auto';
     const group = document.querySelector(`[data-manual-group="${objective}"]`);
     group.querySelectorAll('[data-stat]').forEach((button) => {
       button.disabled = automatic;
@@ -1664,7 +1717,7 @@ document.querySelectorAll('[data-stat]').forEach((button) => {
     const config = readFormValues();
     const stat = button.dataset.stat;
     const objective = stat.replace(/(Blue|Red)$/, '').toLowerCase();
-    if (config.ocr.modes[objective] === 'auto') return;
+    if (readObjectiveModes(config)[objective] === 'auto') return;
 
     const nextValue = Math.max(0, Number(config.match[stat] || 0) + Number(button.dataset.delta || 0));
     config.match[stat] = nextValue;
@@ -1693,14 +1746,21 @@ async function loadOcrConfigFromServer() {
   if (!result.ok) return;
   const remote = result.value || {};
   const config = getConfig();
+  // `remote.modes` adalah Field Lock per-field; objectiveModes tidak boleh ikut tertimpa
+  // dari sini. Versi lama menulis `modes: remote.modes || ...` dan karena `{}` tetap
+  // truthy, objectiveModes lenyap setiap config OCR server dimuat; itulah bug tombol
+  // Turtle/Lord mati. Table Field Lock juga ikut hilang karena `remote.modes ||` membiarkan
+  // object kosong menimpa apa yang sudah ada di memori.
+  const remoteModes = Object.keys(remote.modes || {}).length ? remote.modes : config.ocr?.modes || {};
   config.ocr = {
     ...(config.ocr || {}),
-    modes: remote.modes || config.ocr?.modes || {},
-    thresholds: remote.thresholds || config.ocr?.thresholds || {},
+    modes: { ...remoteModes },
+    thresholds: Object.keys(remote.thresholds || {}).length ? remote.thresholds : config.ocr?.thresholds || {},
     anchor: remote.anchor || config.ocr?.anchor || {},
     regions: remote.regions && Object.keys(remote.regions).length ? remote.regions : config.ocr?.regions || {},
     ocrEnabled: remote.enabled !== false,
   };
+  config.ocr.objectiveModes = seedObjectiveModes(config.ocr, remote.modes);
   setConfig(config);
   populateForm(config);
   renderOcrFieldRows();
@@ -1848,10 +1908,16 @@ form.elements.headerWidth.addEventListener('input', () => {
 });
 form.querySelectorAll('[name="turtleMode"], [name="lordMode"], [name="towerMode"]').forEach((select) => {
   select.addEventListener('change', () => {
-    const config = readFormValues();
+const config = readFormValues();
     setConfig(config);
-    updateManualControls(config.ocr.modes);
+    updateManualControls(config.ocr.objectiveModes);
     renderPreview(config);
+    // Table Field Lock harus ikut berubah di mata operator, kalau tidak select "Manual" dan
+    // table "auto (OCR boleh)" akan saling bertentangan di halaman yang sama. Dan karena
+    // table inilah yang disimpan ke server,_objective yang tidak ikut berubah akan hilang
+    // begitu halaman dibuka di browser lain.
+    renderOcrFieldRows();
+    applyLockedFieldState(config);
     status.textContent = 'Mode OCR/manual tersimpan. OCR Live akan mengikuti mode ini.';
   });
 });

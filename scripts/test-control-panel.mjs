@@ -52,7 +52,15 @@ Kit.fetchState = async () => ({ ok: false });
 // Aux editors are the least covered part of this page, so they get a real round-trip stub
 // instead of the blanket 'sent' the socket uses.
 const auxPuts = [];
-Kit.fetchAux = async (unusedSlug, kind) => ({ ok: false, value: undefined, kind });
+// 'ocr' harus balas dengan bentuk default yang BENAR-BENAR dikembalikan worker
+// (normalizeOcrState -> defaultOcrState). Stub `ok:false` untuk ocr membuat jalur ini
+// tak pernah diuji, padahal justru di situ select Mode Turtle/Lord jadi kosong.
+const OCR_DEFAULT = { enabled: false, regions: {}, modes: {}, thresholds: {}, anchor: null };
+Kit.fetchAux = async (unusedSlug, kind) => (
+  kind === 'ocr'
+    ? { ok: true, value: { ...OCR_DEFAULT }, kind }
+    : { ok: false, value: undefined, kind }
+);
 Kit.pushAux = async (unusedSlug, kind, value) => { auxPuts.push({ kind, value }); return { ok: true }; };
 const sentMessages = [];
 window.LiveSocket = {
@@ -345,6 +353,98 @@ section('Ketahanan penyimpanan dan status');
   check('operator diberi tahu state server berubah',
     document.getElementById('status').textContent.includes('tidak ditimpa'), document.getElementById('status').textContent);
 }
+
+section('Mode objective Turtle/Lord survive config OCR dari server');
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+const modeSelect = (objective) => form.elements[`${objective}Mode`];
+const stepButton = (stat, delta) => document.querySelector(`[data-stat="${stat}"][data-delta="${delta}"]`);
+const valueOutput = (stat) => document.getElementById(`${stat.replace(/([A-Z])/g, '-$1').toLowerCase()}-value`);
+
+// Worker selalu membalas modes: {} untuk profil yang Field Lock-nya belum pernah disimpan.
+// `{}` tetap truthy, jadi versi lama menimpa objectiveModes dengan object kosong; populateForm
+// lalu menulis undefined ke select dan browser menyisakan selectedIndex -1 (select tampil
+// kosong). Guard klik membaca select kosong itu sebagai 'auto' sehingga tombol +/-
+// mati padahal label sudah menulis "(manual)".
+['turtle', 'lord', 'tower'].forEach((objective) => {
+  check(`select Mode ${objective} tidak kosong setelah config OCR server`,
+    modeSelect(objective).selectedIndex !== -1 && modeSelect(objective).value !== '',
+    `selectedIndex=${modeSelect(objective).selectedIndex} value="${modeSelect(objective).value}"`);
+});
+
+// Operator memilih Manual untuk Turtle dan Lord, lalu memakai tombol +/-.
+['turtle', 'lord'].forEach((objective) => {
+  const select = modeSelect(objective);
+  select.value = 'manual';
+  select.dispatchEvent(new window.Event('change', { bubbles: true }));
+});
+check('label mode turtle jadi (manual)',
+  document.querySelector('[data-mode-label="turtle"]').textContent === '(manual)',
+  document.querySelector('[data-mode-label="turtle"]').textContent);
+check('label mode lord jadi (manual)',
+  document.querySelector('[data-mode-label="lord"]').textContent === '(manual)',
+  document.querySelector('[data-mode-label="lord"]').textContent);
+
+['turtleBlue', 'turtleRed', 'lordBlue', 'lordRed'].forEach((stat) => {
+  check(`tombol +/- ${stat} aktif saat mode manual`, stepButton(stat, 1).disabled === false);
+});
+
+const startTurtle = form.elements.turtleBlue.value;
+stepButton('turtleBlue', 1).click();
+check('klik + menambah Turtle Biru',
+  form.elements.turtleBlue.value === String(Number(startTurtle) + 1),
+  `${startTurtle} -> ${form.elements.turtleBlue.value}`);
+check('output Turtle Biru ikut berubah',
+  valueOutput('turtleBlue').textContent === form.elements.turtleBlue.value,
+  `${valueOutput('turtleBlue').textContent} vs ${form.elements.turtleBlue.value}`);
+stepButton('turtleBlue', 1).click();
+check('klik + kedua tidak ditolak',
+  form.elements.turtleBlue.value === String(Number(startTurtle) + 2),
+  form.elements.turtleBlue.value);
+stepButton('turtleBlue', -1).click();
+check('klik - mengurangi Turtle Biru',
+  form.elements.turtleBlue.value === String(Number(startTurtle) + 1),
+  form.elements.turtleBlue.value);
+
+const startLord = form.elements.lordRed.value;
+stepButton('lordRed', 1).click();
+check('klik + menambah Lord Merah',
+  form.elements.lordRed.value === String(Number(startLord) + 1),
+  `${startLord} -> ${form.elements.lordRed.value}`);
+
+// Field Lock table harus ikut mencerminkan mode objective, kalau tidak select dan table
+// saling bertentangan dan pilihan operator hilang saat dibuka di browser lain.
+const fieldLockMode = (field) => document.querySelector(`[data-ocr-mode="${field}"]`)?.value;
+check('Field Lock turtleBlue ikut lock', fieldLockMode('turtleBlue') === 'lock', fieldLockMode('turtleBlue'));
+check('Field Lock lordBlue ikut lock', fieldLockMode('lordBlue') === 'lock', fieldLockMode('lordBlue'));
+
+// Menyimpan OCR tidak boleh menghapus mode objective dari memori.
+await window.eval('saveOcrConfig()');
+await new Promise((resolve) => setTimeout(resolve, 0));
+check('simpan OCR tidak menghapus mode objective turtle',
+  window.eval('getConfig().ocr.objectiveModes.turtle') === 'manual',
+  String(window.eval('getConfig().ocr.objectiveModes.turtle')));
+check('simpan OCR tidak menghapus mode objective lord',
+  window.eval('getConfig().ocr.objectiveModes.lord') === 'manual',
+  String(window.eval('getConfig().ocr.objectiveModes.lord')));
+stepButton('lordBlue', 1).click();
+check('tombol Lord masih hidup setelah simpan OCR',
+  form.elements.lordBlue.value === String(Number(form.elements.lordBlue.value) - 1 + 1),
+  form.elements.lordBlue.value);
+
+// populateForm boleh dipanggil ulang (mis. setelah ganti nama profil) tanpa membatalkan mode.
+window.eval('populateForm(getConfig())');
+await new Promise((resolve) => setTimeout(resolve, 0));
+['turtle', 'lord'].forEach((objective) => {
+  check(`select Mode ${objective} bertahan setelah populateForm ulang`,
+    modeSelect(objective).value === 'manual',
+    `value="${modeSelect(objective).value}"`);
+});
+const beforeRepopulate = form.elements.turtleBlue.value;
+stepButton('turtleBlue', 1).click();
+check('tombol Turtle masih hidup setelah populateForm ulang',
+  form.elements.turtleBlue.value === String(Number(beforeRepopulate) + 1),
+  `${beforeRepopulate} -> ${form.elements.turtleBlue.value}`);
 
 console.log(`\n========================================`);
 console.log(`  ${passed} passed, ${failed} failed`);

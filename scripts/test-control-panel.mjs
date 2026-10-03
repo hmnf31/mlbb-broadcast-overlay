@@ -357,7 +357,9 @@ section('Ketahanan penyimpanan dan status');
 section('Mode objective Turtle/Lord survive config OCR dari server');
 await new Promise((resolve) => setTimeout(resolve, 0));
 
-const modeSelect = (objective) => form.elements[`${objective}Mode`];
+// Select Mode pindah ke dalam card Objective, yang berada di luar <form id="control-form">,
+// jadi form.elements tidak bisa dipakai di sini maupun di app.js.
+const modeSelect = (objective) => document.querySelector(`[data-manual-group="${objective}"] select[name="${objective}Mode"]`);
 const stepButton = (stat, delta) => document.querySelector(`[data-stat="${stat}"][data-delta="${delta}"]`);
 const valueOutput = (stat) => document.getElementById(`${stat.replace(/([A-Z])/g, '-$1').toLowerCase()}-value`);
 
@@ -366,19 +368,19 @@ const valueOutput = (stat) => document.getElementById(`${stat.replace(/([A-Z])/g
 // lalu menulis undefined ke select dan browser menyisakan selectedIndex -1 (select tampil
 // kosong). Guard klik membaca select kosong itu sebagai 'auto' sehingga tombol +/-
 // mati padahal label sudah menulis "(manual)".
-['turtle', 'lord', 'tower'].forEach((objective) => {
+['lord', 'tower'].forEach((objective) => {
   check(`select Mode ${objective} tidak kosong setelah config OCR server`,
     modeSelect(objective).selectedIndex !== -1 && modeSelect(objective).value !== '',
     `selectedIndex=${modeSelect(objective).selectedIndex} value="${modeSelect(objective).value}"`);
 });
 
-// Operator memilih Manual untuk Turtle dan Lord, lalu memakai tombol +/-.
-['turtle', 'lord'].forEach((objective) => {
+// Operator memilih Manual untuk Lord, lalu memakai tombol +/-.
+['lord'].forEach((objective) => {
   const select = modeSelect(objective);
   select.value = 'manual';
   select.dispatchEvent(new window.Event('change', { bubbles: true }));
 });
-check('label mode turtle jadi (manual)',
+check('label mode turtle tetap (manual)',
   document.querySelector('[data-mode-label="turtle"]').textContent === '(manual)',
   document.querySelector('[data-mode-label="turtle"]').textContent);
 check('label mode lord jadi (manual)',
@@ -415,7 +417,6 @@ check('klik + menambah Lord Merah',
 // Field Lock table harus ikut mencerminkan mode objective, kalau tidak select dan table
 // saling bertentangan dan pilihan operator hilang saat dibuka di browser lain.
 const fieldLockMode = (field) => document.querySelector(`[data-ocr-mode="${field}"]`)?.value;
-check('Field Lock turtleBlue ikut lock', fieldLockMode('turtleBlue') === 'lock', fieldLockMode('turtleBlue'));
 check('Field Lock lordBlue ikut lock', fieldLockMode('lordBlue') === 'lock', fieldLockMode('lordBlue'));
 
 // Menyimpan OCR tidak boleh menghapus mode objective dari memori.
@@ -435,7 +436,7 @@ check('tombol Lord masih hidup setelah simpan OCR',
 // populateForm boleh dipanggil ulang (mis. setelah ganti nama profil) tanpa membatalkan mode.
 window.eval('populateForm(getConfig())');
 await new Promise((resolve) => setTimeout(resolve, 0));
-['turtle', 'lord'].forEach((objective) => {
+['lord'].forEach((objective) => {
   check(`select Mode ${objective} bertahan setelah populateForm ulang`,
     modeSelect(objective).value === 'manual',
     `value="${modeSelect(objective).value}"`);
@@ -445,6 +446,69 @@ stepButton('turtleBlue', 1).click();
 check('tombol Turtle masih hidup setelah populateForm ulang',
   form.elements.turtleBlue.value === String(Number(beforeRepopulate) + 1),
   `${beforeRepopulate} -> ${form.elements.turtleBlue.value}`);
+
+section('Card Objective: mode switch hidup di sebelah tombolnya');
+// Ini penyebab sebenarnya laporan "Turtle dan Lord tidak bisa manual": default turtle/lord
+// dulu 'auto', jadi tombolnya greyed sejak halaman dibuka, sementara Tower default 'manual'
+// dan langsung bisa dipakai. Select mode-nya juga berada 220 baris di atas tombolnya.
+['lord', 'tower'].forEach((objective) => {
+  const all = document.querySelectorAll(`[name="${objective}Mode"]`);
+  check(`select Mode ${objective} hanya ada satu`, all.length === 1, `${all.length} ditemukan`);
+  check(`select Mode ${objective} berada di dalam cardnya`,
+    all[0]?.closest(`[data-manual-group="${objective}"]`) !== null);
+});
+
+// Turtle manual-only: tidak ada select mode sama sekali, tidak ada opsi "Otomatis OCR".
+check('Turtle tidak punya select mode',
+  document.querySelectorAll('[name="turtleMode"]').length === 0,
+  `${document.querySelectorAll('[name="turtleMode"]').length} ditemukan`);
+check('Turtle tidak punya opsi Otomatis OCR di cardnya',
+  !/Otomatis OCR/.test(document.querySelector('[data-manual-group="turtle"]').textContent));
+check('Card Turtle menjelaskan bahwa ia selalu manual',
+  /manual/i.test(document.querySelector('[data-manual-group="turtle"] .manual-hint').textContent),
+  document.querySelector('[data-manual-group="turtle"] .manual-hint').textContent);
+
+['turtle', 'lord', 'tower'].forEach((objective) => {
+  check(`tombol +/- ${objective} aktif sejak halaman dibuka`,
+    stepButton(`${objective}Blue`, 1).disabled === false && stepButton(`${objective}Red`, -1).disabled === false);
+});
+
+// Klik +/- tanpa menyentuh select sama sekali: inilah yang dilakukan operator.
+['turtleBlue', 'turtleRed', 'lordBlue', 'lordRed'].forEach((stat) => {
+  const start = form.elements[stat].value;
+  stepButton(stat, 1).click();
+  check(`+/- ${stat} langsung bisa dipakai tanpa pilih mode dulu`,
+    form.elements[stat].value === String(Number(start) + 1),
+    `${start} -> ${form.elements[stat].value}`);
+  stepButton(stat, -1).click();
+});
+
+// Mode OCR harus mematikan tombol DAN menjelaskan kenapa di dalam card itu.
+modeSelect('lord').value = 'auto';
+modeSelect('lord').dispatchEvent(new window.Event('change', { bubbles: true }));
+check('mode OCR mematikan tombol lord', stepButton('lordBlue', 1).disabled === true);
+check('mode OCR menjelaskan kenapa tombol mati di dalam card',
+  (document.querySelector('[data-mode-hint="lord"]')?.textContent || '').includes('Manual'),
+  document.querySelector('[data-mode-hint="lord"]')?.textContent);
+modeSelect('lord').value = 'manual';
+modeSelect('lord').dispatchEvent(new window.Event('change', { bubbles: true }));
+check('kembali ke Manual menghidupkan tombol lord', stepButton('lordBlue', 1).disabled === false);
+check('hint hilang saat mode manual',
+  (document.querySelector('[data-mode-hint="lord"]')?.textContent || '') === '');
+
+// Turtle tidak boleh muncul lagi di permukaan OCR: table Field Lock maupun daftar field
+// yang boleh discan. Nilai turtle tetap ada di match state karena overlay tetap menampilkannya.
+const lockFields = [...document.querySelectorAll('[data-ocr-mode]')].map((el) => el.dataset.ocrMode);
+check('Turtle tidak ada di table Field Lock',
+  !lockFields.includes('turtleBlue') && !lockFields.includes('turtleRed'),
+  lockFields.join(','));
+check('Lord dan Tower tetap ada di table Field Lock',
+  lockFields.includes('lordBlue') && lockFields.includes('towerRed'), lockFields.join(','));
+check('Turtle tidak masuk daftar field OCR aktif',
+  !window.eval('getConfig().ocr.enabled').includes('turtleBlue'),
+  JSON.stringify(window.eval('getConfig().ocr.enabled')));
+check('Turtle tetap punya nilai di match state',
+  typeof window.eval('getConfig().match.turtleBlue') === 'number');
 
 console.log(`\n========================================`);
 console.log(`  ${passed} passed, ${failed} failed`);

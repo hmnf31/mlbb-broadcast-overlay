@@ -504,6 +504,29 @@ async function main() {
 
     const anchor = await api(`/api/p/${alpha.slug}/ocr`);
     check('anchor tersimpan dari bacaan', anchor.json?.anchor?.redKills === 3, JSON.stringify(anchor.json?.anchor));
+
+    // Turtle manual-only: OCR_FIELDS tidak lagi memuat turtleBlue/turtleRed, jadi bacaan
+    // turtle harus DITOLAK. Kalau ini lolos, OCR bisa menimpa angka yang diurus operator
+    // lewat tombol +/- di control panel.
+    const turtleBefore = (await api(`/api/p/${alpha.slug}/state`)).json?.payload?.match?.turtleBlue;
+    const turtle = await api(`/api/p/${alpha.slug}/ocr/readings`, {
+      method: 'POST',
+      headers: jsonHeaders(alpha.ownerKey),
+      body: JSON.stringify({
+        readings: { turtleBlue: 9, turtleRed: 7, lordBlue: 2 },
+        anchor: { turtleBlue: 9, turtleRed: 7 },
+      }),
+    });
+    check('bacaan turtle ditolak', turtle.json?.rejected?.includes('turtleBlue')
+      && turtle.json?.rejected?.includes('turtleRed'), JSON.stringify(turtle.json));
+    check('bacaan lord tetap diterima', turtle.json?.applied?.includes('lordBlue'), JSON.stringify(turtle.json));
+    const afterTurtle = (await api(`/api/p/${alpha.slug}/state`)).json?.payload?.match;
+    check('angka turtle tidak tertimpa OCR', afterTurtle?.turtleBlue === turtleBefore,
+      `${turtleBefore} -> ${afterTurtle?.turtleBlue}`);
+    const savedOcr = await api(`/api/p/${alpha.slug}/ocr`);
+    check('mode/threshold turtle tidak tersimpan',
+      !('turtleBlue' in (savedOcr.json?.modes || {})) && !('turtleBlue' in (savedOcr.json?.thresholds || {})),
+      JSON.stringify(savedOcr.json?.modes));
   }
 
   section('Result + players');

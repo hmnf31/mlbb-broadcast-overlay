@@ -10,17 +10,17 @@ const defaultRegions = {
   redKills: { label: 'Kill Merah', group: 'red', x: 0.585, y: 0.07, w: 0.055, h: 0.065 },
   blueGold: { label: 'Gold Biru', group: 'blue', x: 0.02, y: 0.02, w: 0.12, h: 0.07 },
   redGold: { label: 'Gold Merah', group: 'red', x: 0.86, y: 0.02, w: 0.12, h: 0.07 },
-  turtleBlue: { label: 'Turtle Biru', group: 'blue', x: 0.30, y: 0.14, w: 0.055, h: 0.06 },
-  turtleRed: { label: 'Turtle Merah', group: 'red', x: 0.645, y: 0.14, w: 0.055, h: 0.06 },
+  // Turtle tidak punya ROI: hanya Lord dan Tower yang discan OCR. Jumlah turtle diisi
+  // manual lewat tombol +/- di control panel, jadi tidak ada area gambar untuk discan.
   lordBlue: { label: 'Lord Biru', group: 'blue', x: 0.30, y: 0.21, w: 0.055, h: 0.06 },
   lordRed: { label: 'Lord Merah', group: 'red', x: 0.645, y: 0.21, w: 0.055, h: 0.06 },
   towerBlue: { label: 'Tower Biru', group: 'blue', x: 0.30, y: 0.28, w: 0.055, h: 0.06 },
   towerRed: { label: 'Tower Merah', group: 'red', x: 0.645, y: 0.28, w: 0.055, h: 0.06 },
 };
 const requiredFields = ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold'];
-const optionalFields = ['turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed'];
+const optionalFields = ['lordBlue', 'lordRed', 'towerBlue', 'towerRed'];
 const allFields = [...requiredFields, ...optionalFields];
-const defaultModes = { turtle: 'auto', lord: 'auto', tower: 'manual' };
+const defaultModes = { lord: 'auto', tower: 'manual' };
 const stage = document.getElementById('source-frame');
 const image = document.getElementById('source-image');
 const video = document.getElementById('source-video');
@@ -47,7 +47,7 @@ const savedOcr = getConfig().ocr || {};
 const ocrGuard = window.OcrGuard.createGuard({
   anchor: savedOcr.anchor || {},
   thresholds: savedOcr.thresholds || {},
-  majorityFields: ['turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed'],
+  majorityFields: ['lordBlue', 'lordRed', 'towerBlue', 'towerRed'],
   onReanchor: () => {
     status.textContent = 'Anchor OCR direset: angka turun jauh dan stabil, ini game baru.';
   },
@@ -97,7 +97,6 @@ function getActiveFields() {
   const modes = { ...defaultModes, ...(getConfig().ocr?.modes || {}) };
   return [
     ...requiredFields,
-    ...(modes.turtle === 'auto' ? ['turtleBlue', 'turtleRed'] : []),
     ...(modes.lord === 'auto' ? ['lordBlue', 'lordRed'] : []),
     ...(modes.tower === 'auto' ? ['towerBlue', 'towerRed'] : []),
   ];

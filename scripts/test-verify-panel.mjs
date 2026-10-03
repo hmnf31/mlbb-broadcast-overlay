@@ -35,7 +35,16 @@ section('Provider bawaan');
   const manual = providers.find((provider) => provider.id === 'manual');
   check('provider manual ditandai tier manual', manual.tier === 'manual', manual.tier);
   check('fungsi recognize tidak bocor lewat list()', manual.recognize === undefined);
-  check('field yang terdaftar sama dengan Field Lock server', OcrAdapter.FIELDS.length === 11, String(OcrAdapter.FIELDS.length));
+  // Turtle manual-only, jadi tidak boleh jadi field OCR sama sekali. Field lock server
+  // (OCR_FIELDS di worker.mjs) juga 9 field; kalau adapter berbeda, verify diam-diam
+  // mengirim bacaan yang pasti ditolak.
+  check('field yang terdaftar sama dengan Field Lock server', OcrAdapter.FIELDS.length === 9, String(OcrAdapter.FIELDS.length));
+  check('Turtle tidak boleh jadi field OCR',
+    !OcrAdapter.FIELDS.includes('turtleBlue') && !OcrAdapter.FIELDS.includes('turtleRed'),
+    OcrAdapter.FIELDS.join(','));
+  check('Lord dan Tower tetap jadi field OCR',
+    ['lordBlue', 'lordRed', 'towerBlue', 'towerRed'].every((f) => OcrAdapter.FIELDS.includes(f)),
+    OcrAdapter.FIELDS.join(','));
   check('semua field punya label', OcrAdapter.FIELDS.every((field) => typeof field === 'string' && field.length));
 }
 
@@ -144,10 +153,10 @@ section('Panel: baris dan ringkasan');
   const { document, errors, sockets } = await boot();
   check('boot tanpa error', errors.length === 0, errors.join(' | '));
   const rows = document.getElementById('verify-rows').children;
-  check('satu baris per field', rows.length === 11, String(rows.length));
+  check('satu baris per field', rows.length === 9, String(rows.length));
   check('baris pertama = Timer', rows[0].dataset.field === 'timer', rows[0].dataset.field);
   check('input ada di setiap baris', [...rows].every((row) => Boolean(row.querySelector('input'))));
-  check('ringkasan awal 0/11', document.getElementById('summary-filled').textContent === '0 / 11', document.getElementById('summary-filled').textContent);
+  check('ringkasan awal 0/9', document.getElementById('summary-filled').textContent === '0 / 9', document.getElementById('summary-filled').textContent);
   check('adapter manual terdaftar di UI', document.getElementById('verify-provider').textContent.includes('manual'), document.getElementById('verify-provider').textContent);
 
   sockets[0].onMessage({
@@ -208,7 +217,7 @@ section('Panel: push ke stream');
 
   // Reset hanya mengosongkan tabel lokal, tidak boleh menyentuh server.
   document.getElementById('reset-button').dispatchEvent(new window.Event('click'));
-  check('reset mengosongkan tabel', document.getElementById('summary-filled').textContent === '0 / 11', document.getElementById('summary-filled').textContent);
+  check('reset mengosongkan tabel', document.getElementById('summary-filled').textContent === '0 / 9', document.getElementById('summary-filled').textContent);
   check('reset tidak memanggil push', pushed.length === 1, String(pushed.length));
   check('status reset menjelaskan dampaknya', /tidak berubah sampai/.test(document.getElementById('push-status').textContent), document.getElementById('push-status').textContent);
 }

@@ -21,9 +21,12 @@
 
   // Field yang boleh diisi adapter. Sama dengan field Field Lock di server supaya satu
   // bacaan yang lolos di sini juga tidak ditolak server karena nama fieldnya beda.
-  const FIELDS = [
+  // Turtle sengaja tidak ada: hanya Lord dan Tower yang discan OCR. Jumlah turtle diisi
+// manual di control panel, jadi membiarkan adapter mengirimkannya hanya menambah bacaan
+// yang pasti ditolak worker.
+const FIELDS = [
     'timer', 'blueKills', 'redKills', 'blueGold', 'redGold',
-    'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed',
+    'lordBlue', 'lordRed', 'towerBlue', 'towerRed',
   ];
 
   function register(provider) {

@@ -270,9 +270,11 @@ function normalizeDraftState(value) {
 // apa adanya. `fieldModes` controls Field Lock: `lock` berarti nilai hanya boleh diubah
 // operator, OCR tidak boleh menimpanya.
 const OCR_FIELD_MODES = new Set(['auto', 'lock', 'manual']);
+// Turtle tidak ada di sini. Jumlah turtle hanya boleh diubah operator lewat control panel,
+// jadi bacaan OCR yang menyebutnya harus ditolak, bukan disimpan lalu diam-diam diabaikan.
 const OCR_FIELDS = new Set([
   'timer', 'blueKills', 'redKills', 'blueGold', 'redGold',
-  'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed',
+  'lordBlue', 'lordRed', 'towerBlue', 'towerRed',
 ]);
 
 function normalizeOcrState(value) {
@@ -968,8 +970,20 @@ export class ProfileStore extends DurableObject {
       const readings = {};
       const rejected = [];
       for (const [field, raw] of Object.entries(isPlainObject(parsed.value.readings) ? parsed.value.readings : {})) {
+        // Field yang tidak dikenal DITOLAK, bukan di Lewati diam-diam. Versi lama memakai
+        // `continue` tanpa mencatat apa pun, jadi bacaan turtle (dan field karangan lain)
+        // hilang tanpa jejak: operator melihat `applied: [lordBlue]` dan menyimpulkan
+        // turtle juga diterima. Untuk Turtle manual-only itu justru bahaya, karena angka
+        // yang diurus manual terlihat seperti berhasil di-update mesin.
+        if (!OCR_FIELDS.has(field)) {
+          rejected.push(field);
+          continue;
+        }
         const value = Number(raw);
-        if (!OCR_FIELDS.has(field) || !Number.isFinite(value)) continue;
+        if (!Number.isFinite(value)) {
+          rejected.push(field);
+          continue;
+        }
         if (locked.has(field)) {
           rejected.push(field);
           continue;

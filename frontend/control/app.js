@@ -87,28 +87,51 @@
     hostName: { x: 480, y: 500 },
   },
   ocr: {
-    enabled: ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold', 'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed'],
+    enabled: ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold'],
     // `modes` adalah Field Lock PER FIELD dan ini yang bentuknya disimpan server
     // (lihat normalizeOcrState di worker.mjs: key yang bukan nama field dibuang).
     modes: {},
-    // `objectiveModes` adalah mode per objective {turtle, lord, tower} yang mengikat select
-    // "Mode Turtle/Lord/Tower" dan tombol +/- di section Objective. Keduanya tidak boleh
-    // berbagi satu key: objective menulis {turtle,lord,tower} sementara server menulis
-    // {turtleBlue,...}. Begitu keduanya berbagi key, config OCR dari server menimpa nilai
-    // objective jadi select Mode Turtle kosong, lalu `data.get('turtleMode') || 'auto'`
-    // diam-diam mengembalikannya ke auto dan tombol +/- mati.
-    objectiveModes: { turtle: 'auto', lord: 'auto', tower: 'manual' },
+    // `objectiveModes` adalah mode per objective yang mengikat select "Mode Lord/Tower" dan
+    // tombol +/- di section Objective. Keduanya tidak boleh berbagi satu key: objective
+    // menulis {lord,tower} sementara server menulis {lordBlue,...}. Begitu keduanya berbagi
+    // key, config OCR dari server menimpa nilai objective dan select-nya jadi kosong.
+    // Turtle tidak punya mode lagi: kirimannya selalu manual.
+    objectiveModes: { turtle: 'manual', lord: 'manual', tower: 'manual' },
   },
 };
 
 // Nilai objective mode yang selalu sah. Dipakai populateForm supaya tidak pernah menulis
 // nilai yang tidak ada di <option> mana pun; browser akan menyisakan selectedIndex -1 dan
 // select tampil kosong kalau itu terjadi.
+// Lord dan Tower default manual. Versi lama default turtle/lord ke 'auto', sehingga tombol
+  // +/- Turtle dan Lord greyed sejak halaman dibuka sementara Tower (default 'manual') bisa
+  // langsung dipakai -- persis laporan "Hanya Turtle dan Lord yang tidak bisa manual".
+  // Turtle kini tidak punya mode sama sekali: selalu manual.
+// Select Mode Turtle/Lord/Tower hidup di dalam card Objective, yang berada DI LUAR
+// <form id="control-form"> (form cuma membungkus form pengaturan utama). Jadi select ini
+// tidak bisa dibaca lewat form.elements maupun new FormData(form) -- keduanya hanya melihat
+// kontrol di dalam form. Versi lama menaruh select-nya di dalam form, 220 baris di atas
+// tombol yang dikontrol, supaya operator tidak pernah menemukan switch-nya.
+function objectiveModeInputs() {
+  const inputs = {};
+  // Turtle tidak punya select: OCR hanya-scan Lord dan Tower, Turtle selalu manual.
+  ['lord', 'tower'].forEach((objective) => {
+    inputs[objective] = document.querySelector(`[data-manual-group="${objective}"] select[name="${objective}Mode"]`);
+  });
+  return inputs;
+}
+
+function readObjectiveModeFromDom() {
+  const inputs = objectiveModeInputs();
+  const read = (objective) => (inputs[objective]?.value === 'auto' ? 'auto' : 'manual');
+  return { turtle: 'manual', lord: read('lord'), tower: read('tower') };
+}
+
 function readObjectiveModes(config) {
   const saved = config?.ocr?.objectiveModes || {};
   return {
-    turtle: saved.turtle === 'manual' ? 'manual' : 'auto',
-    lord: saved.lord === 'manual' ? 'manual' : 'auto',
+    turtle: 'manual',
+    lord: saved.lord === 'auto' ? 'auto' : 'manual',
     tower: saved.tower === 'auto' ? 'auto' : 'manual',
   };
 }
@@ -123,7 +146,7 @@ function seedObjectiveModes(ocr, remoteModes) {
   const modes = remoteModes || {};
   const locked = (field) => modes[field] === 'lock' || modes[field] === 'manual';
   const seeded = { ...current };
-  ['turtle', 'lord', 'tower'].forEach((objective) => {
+  ['lord', 'tower'].forEach((objective) => {
     const fields = [`${objective}Blue`, `${objective}Red`];
     if (!fields.some((field) => modes[field])) return;
     const manual = fields.every((field) => locked(field));
@@ -855,8 +878,6 @@ const ocrFieldLabels = {
   redKills: 'Kill Red',
   blueGold: 'Gold Blue',
   redGold: 'Gold Red',
-  turtleBlue: 'Turtle Blue',
-  turtleRed: 'Turtle Red',
   lordBlue: 'Lord Blue',
   lordRed: 'Lord Red',
   towerBlue: 'Tower Blue',
@@ -867,11 +888,11 @@ function ocrFieldModes() {
   const saved = getConfig().ocr || {};
   // Table Field Lock (per-field) dan select objective (per-objective) hidup di key
   // berbeda. Versi lama membaca `saved.modes.turtle` dari object yang isinya per-field,
-  // jadi turunannya selalu undefined dan memilih "Manual" untuk Turtle/Lord tidak
-  // pernah tampil di table.
+  // jadi turunannya selalu undefined dan memilih "Manual" untuk Turtle/Lord tidak pernah
+  // tampil di table. Turtle tidak ada di sini: field-nya tidak pernah disentuh OCR.
   const modes = { ...(saved.modes || {}) };
   const objectives = readObjectiveModes({ ocr: saved });
-  ['turtle', 'lord', 'tower'].forEach((objective) => {
+  ['lord', 'tower'].forEach((objective) => {
     if (modes[`${objective}Blue`] || modes[`${objective}Red`]) return;
     const mode = objectives[objective] === 'auto' ? 'auto' : 'lock';
     modes[`${objective}Blue`] = mode;
@@ -1554,11 +1575,7 @@ function readFormValues() {
 
   // Mode objective disimpan di key sendiri, bukan di `modes`. `modes` milik Field Lock
   // per-field dan bentuknya sudah tentu tidak cocok di sini.
-  config.ocr.objectiveModes = {
-    turtle: data.get('turtleMode') === 'manual' ? 'manual' : 'auto',
-    lord: data.get('lordMode') === 'manual' ? 'manual' : 'auto',
-    tower: data.get('towerMode') === 'auto' ? 'auto' : 'manual',
-  };
+  config.ocr.objectiveModes = readObjectiveModeFromDom();
 
   config.style.fontFamily = data.get('fontFamily') || config.style.fontFamily;
 
@@ -1572,7 +1589,6 @@ function readFormValues() {
   });
 
   const enabled = ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold'];
-  if (config.ocr.objectiveModes.turtle === 'auto') enabled.push('turtleBlue', 'turtleRed');
   if (config.ocr.objectiveModes.lord === 'auto') enabled.push('lordBlue', 'lordRed');
   if (config.ocr.objectiveModes.tower === 'auto') enabled.push('towerBlue', 'towerRed');
   config.ocr.enabled = enabled;
@@ -1603,9 +1619,9 @@ function populateForm(config) {
   form.elements.towerBlue.value = config.match.towerBlue;
   form.elements.towerRed.value = config.match.towerRed;
   const objectiveModes = readObjectiveModes(config);
-  form.elements.turtleMode.value = objectiveModes.turtle;
-  form.elements.lordMode.value = objectiveModes.lord;
-  form.elements.towerMode.value = objectiveModes.tower;
+const modeInputs = objectiveModeInputs();
+modeInputs.lord.value = objectiveModes.lord;
+modeInputs.tower.value = objectiveModes.tower;
   form.elements.fontFamily.value = config.style.fontFamily;
 
   textStyleItems.forEach((key) => {
@@ -1632,6 +1648,15 @@ function updateManualControls(modes) {
       button.disabled = automatic;
     });
     group.querySelector(`[data-mode-label="${objective}"]`).textContent = automatic ? '(OCR)' : '(manual)';
+    // Operator tidak bisa menebak apa yang salah dari tombol greyed, jadi card itu selalu
+    // bilang kenapa tombolnya mati dan apa yang harus dilakukan. Card Turtle punya teks
+    // statis (kiriman tetap manual), jadi tidak ada hint dinamis untuknya.
+    const hint = group.querySelector(`[data-mode-hint="${objective}"]`);
+    if (hint) {
+      hint.textContent = automatic
+        ? 'Mode OCR aktif, jadi tombol +/- dimatikan. Pilih Manual di atas untuk mengubah sendiri.'
+        : '';
+    }
   });
 
   ['turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed'].forEach((key) => {
@@ -1906,7 +1931,7 @@ headerWidthSlider.addEventListener('input', () => {
 form.elements.headerWidth.addEventListener('input', () => {
   headerWidthSlider.value = form.elements.headerWidth.value;
 });
-form.querySelectorAll('[name="turtleMode"], [name="lordMode"], [name="towerMode"]').forEach((select) => {
+document.querySelectorAll('[data-manual-group] select[name$="Mode"]').forEach((select) => {
   select.addEventListener('change', () => {
 const config = readFormValues();
     setConfig(config);

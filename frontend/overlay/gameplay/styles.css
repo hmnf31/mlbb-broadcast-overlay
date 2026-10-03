@@ -1,0 +1,272 @@
+:root {
+  --text-color: #edf4ff;
+  --muted-color: #a5b6ca;
+  --gold-color: #ffd76a;
+  --blue-color: #5aa9ff;
+  --red-color: #ff6666;
+  --font-family: 'Segoe UI', Tahoma, sans-serif;
+  --base-size: 16px;
+  --title-size: 22px;
+  --team-size: 18px;
+  --timer-size: 30px;
+  --design-scale: 1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text-color);
+  font-family: var(--font-family);
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+.overlay-shell {
+  position: relative;
+  width: min(100vw, 177.777778vh);
+  height: min(100vh, 56.25vw);
+  aspect-ratio: 16 / 9;
+  background: transparent;
+  overflow: hidden;
+}
+
+.position-editor .overlay-shell {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.position-editor .item {
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+  outline: 1px dashed rgba(83, 220, 196, 0.75);
+  outline-offset: 3px;
+}
+
+.item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  line-height: 1.1;
+  color: var(--text-color);
+  font-size: calc(var(--base-size) * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.image-item {
+  width: calc(54px * var(--design-scale));
+  height: calc(54px * var(--design-scale));
+  object-fit: contain;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.header-image {
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.custom-items-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.custom-item {
+  z-index: 2;
+}
+
+/* BO2 series indicator ------------------------------------------------------- */
+
+.bo2-row {
+  display: flex;
+  align-items: center;
+  gap: calc(7px * var(--design-scale));
+  z-index: 2;
+}
+
+.bo2-dot {
+  position: relative;
+  width: calc(15px * var(--design-scale));
+  height: calc(15px * var(--design-scale));
+  border-radius: 50%;
+  border: calc(2px * var(--design-scale)) solid #8a8f98;
+  background: transparent;
+}
+
+.bo2-dot[data-state='win'] {
+  background: #e5484d;
+  border-color: #e5484d;
+}
+
+.bo2-dot[data-state='lose'] {
+  background: #4a4f58;
+  border-color: #4a4f58;
+}
+
+.bo2-dot[data-state='lose']::after {
+  content: '\2715';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(9px * var(--design-scale));
+  color: #e6eaef;
+}
+
+.bo2-dot[data-matchpoint='1'] {
+  animation: bo2-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bo2-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.bo2-set {
+  margin-left: calc(4px * var(--design-scale));
+  padding: calc(2px * var(--design-scale)) calc(7px * var(--design-scale));
+  border-radius: calc(4px * var(--design-scale));
+  background: #e5484d;
+  color: #ffffff;
+  font-size: calc(11px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+/* Player cards 5v5 ---------------------------------------------------------- */
+
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--design-scale));
+  width: calc(388px * var(--design-scale));
+  z-index: 2;
+}
+
+.roster-card {
+  display: grid;
+  grid-template-columns: calc(34px * var(--design-scale)) calc(34px * var(--design-scale)) 1fr auto;
+  align-items: center;
+  gap: calc(7px * var(--design-scale));
+  padding: calc(4px * var(--design-scale)) calc(8px * var(--design-scale));
+  border-radius: calc(7px * var(--design-scale));
+  background: rgba(12, 16, 22, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.roster-hero,
+.roster-level {
+  width: calc(34px * var(--design-scale));
+  height: calc(34px * var(--design-scale));
+  border-radius: calc(6px * var(--design-scale));
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.roster-level {
+  display: grid;
+  place-items: center;
+  font-size: calc(14px * var(--design-scale));
+  font-weight: 800;
+  color: #f4d58d;
+  border: 1px solid rgba(244, 213, 141, 0.35);
+}
+
+.roster-name {
+  font-size: calc(15px * var(--design-scale));
+  font-weight: 700;
+  color: #f2f6fb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-stats {
+  display: flex;
+  gap: calc(6px * var(--design-scale));
+  font-size: calc(13px * var(--design-scale));
+  font-weight: 700;
+}
+
+.roster-stats span {
+  display: flex;
+  gap: calc(3px * var(--design-scale));
+  align-items: baseline;
+}
+
+.roster-stats i {
+  font-style: normal;
+  font-size: calc(9px * var(--design-scale));
+  color: #93a4b5;
+}
+
+.roster-items {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: calc(3px * var(--design-scale));
+}
+
+.roster-items img {
+  width: calc(20px * var(--design-scale));
+  height: calc(20px * var(--design-scale));
+  border-radius: calc(4px * var(--design-scale));
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#tournament-name,
+#round-name,
+#caster-host-text {
+  color: var(--muted-color);
+  font-size: calc(12px * var(--design-scale));
+}
+
+#blue-name,
+#red-name {
+  font-size: calc(var(--team-size) * var(--design-scale));
+  font-weight: 800;
+}
+
+#blue-kills,
+#red-kills {
+  font-size: calc(28px * var(--design-scale));
+  font-weight: 900;
+  color: var(--gold-color);
+}
+
+#match-timer {
+  font-size: calc(var(--timer-size) * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+#blue-gold,
+#red-gold {
+  color: var(--gold-color);
+  font-weight: 800;
+}
+
+#caster-host-text {
+  color: var(--gold-color);
+}

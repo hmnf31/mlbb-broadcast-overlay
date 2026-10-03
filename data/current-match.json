@@ -1,0 +1,86 @@
+{
+  "match": {
+    "id": "match-001",
+    "status": "live",
+    "timer": 1325,
+    "series": {
+      "best_of": 5,
+      "score": {
+        "blue": 2,
+        "red": 1
+      }
+    },
+    "objective": {
+      "turret": {
+        "blue": 3,
+        "red": 2
+      },
+      "turtle": {
+        "blue": 1,
+        "red": 0
+      },
+      "lord": {
+        "blue": 1,
+        "red": 0
+      }
+    }
+  },
+  "teams": {
+    "blue": {
+      "name": "Blue Phoenix",
+      "short": "BPH",
+      "logo": "../../assets/teams/blue-phoenix.svg",
+      "kills": 9,
+      "gold": 18840,
+      "gold_diff": 1320,
+      "tower": 3,
+      "dragons": 1
+    },
+    "red": {
+      "name": "Red Viper",
+      "short": "RVP",
+      "logo": "../../assets/teams/red-viper.svg",
+      "kills": 7,
+      "gold": 17520,
+      "gold_diff": -1320,
+      "tower": 2,
+      "dragons": 0
+    }
+  },
+  "players": [
+    {
+      "slot": 1,
+      "name": "Astra",
+      "role": "Jungle",
+      "hero": "hero-rose",
+      "hero_image": "../../assets/heroes/hero-rose.svg",
+      "level": 15,
+      "kills": 4,
+      "deaths": 1,
+      "assists": 6,
+      "items": [
+        "../../assets/items/boots.svg",
+        "../../assets/items/blade.svg",
+        "../../assets/items/gem.svg"
+      ],
+      "team": "blue"
+    },
+    {
+      "slot": 2,
+      "name": "Vex",
+      "role": "Mid",
+      "hero": "hero-viper",
+      "hero_image": "../../assets/heroes/hero-viper.svg",
+      "level": 14,
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4,
+      "items": [
+        "../../assets/items/boots.svg",
+        "../../assets/items/rod.svg",
+        "../../assets/items/amulet.svg"
+      ],
+      "team": "red"
+    }
+  ]
+}

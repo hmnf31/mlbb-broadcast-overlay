@@ -1,0 +1,11 @@
+node_modules/
+cloudflare/public/
+.wrangler/
+.dev.vars*
+.env*
+
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+live-backup-*/

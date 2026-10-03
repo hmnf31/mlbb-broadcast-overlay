@@ -1,0 +1,127 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Kanvas desain 1280x720 yang diskalakan ke lebar layar, sama seperti overlay gameplay
+   supaya ukuran huruf di kedua browser source terasa sama. */
+.result-shell {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  margin: auto;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(26px * var(--design-scale));
+  overflow: hidden;
+  color: #edf4ff;
+  text-align: center;
+  background: radial-gradient(circle at 50% 30%, rgba(24, 44, 66, 0.92), rgba(6, 12, 18, 0.96) 70%);
+}
+
+.result-shell[data-visible='true'] {
+  display: flex;
+}
+
+.result-banner {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--design-scale));
+}
+
+.result-headline {
+  font-size: calc(84px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: #ffd76a;
+  text-shadow: 0 calc(4px * var(--design-scale)) calc(24px * var(--design-scale)) rgba(0, 0, 0, 0.65);
+}
+
+.result-shell[data-outcome='defeat'] .result-headline {
+  color: #ff7a7a;
+}
+
+.result-subline {
+  font-size: calc(22px * var(--design-scale));
+  color: #b9cad8;
+}
+
+.result-score {
+  display: flex;
+  align-items: center;
+  gap: calc(22px * var(--design-scale));
+  font-size: calc(64px * var(--design-scale));
+  font-weight: 800;
+}
+
+.result-team {
+  display: flex;
+  align-items: center;
+  gap: calc(14px * var(--design-scale));
+}
+
+.result-team-name {
+  font-size: calc(24px * var(--design-scale));
+  color: #9fb3c4;
+  max-width: calc(260px * var(--design-scale));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-team-blue .result-team-score {
+  color: #5aa9ff;
+}
+
+.result-team-red .result-team-score {
+  color: #ff6666;
+}
+
+.result-separator {
+  color: #6b7c8c;
+}
+
+.result-stats {
+  display: flex;
+  gap: calc(28px * var(--design-scale));
+  margin: 0;
+  padding: calc(14px * var(--design-scale)) calc(24px * var(--design-scale));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: calc(12px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.result-stat {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--design-scale));
+  min-width: calc(96px * var(--design-scale));
+}
+
+.result-stat dt {
+  font-size: calc(13px * var(--design-scale));
+  color: #8ea4b6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.result-stat dd {
+  margin: 0;
+  font-size: calc(24px * var(--design-scale));
+  font-weight: 700;
+}
+
+.result-stat-mvp dd {
+  color: #ffd76a;
+}

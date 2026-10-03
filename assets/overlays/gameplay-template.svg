@@ -1,0 +1,16 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1920" height="1080" fill="url(#paint0_linear_1_2)"/>
+  <path d="M0 70H1920V150H0V70Z" fill="rgba(11,17,25,0.35)"/>
+  <path d="M0 280H1920V360H0V280Z" fill="rgba(13,22,32,0.18)"/>
+  <rect x="250" y="118" width="500" height="80" rx="18" fill="rgba(15,22,30,0.55)"/>
+  <rect x="1170" y="118" width="500" height="80" rx="18" fill="rgba(15,22,30,0.55)"/>
+  <rect x="830" y="120" width="260" height="120" rx="22" fill="rgba(15,22,30,0.70)"/>
+  <rect x="420" y="720" width="540" height="200" rx="22" fill="rgba(10,19,28,0.55)"/>
+  <rect x="960" y="720" width="540" height="200" rx="22" fill="rgba(10,19,28,0.55)"/>
+  <defs>
+    <linearGradient id="paint0_linear_1_2" x1="960" y1="0" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1620"/>
+      <stop offset="1" stop-color="#0F1B23"/>
+    </linearGradient>
+  </defs>
+</svg>

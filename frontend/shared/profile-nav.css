@@ -1,0 +1,60 @@
+.profile-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.82rem;
+}
+
+.profile-nav-label {
+  color: #9bb6cf;
+  margin-right: 2px;
+}
+
+.profile-nav a,
+.profile-nav button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #dce8f1;
+  font: inherit;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.profile-nav a:hover,
+.profile-nav button:hover {
+  filter: brightness(1.14);
+}
+
+.profile-nav a[aria-current='page'] {
+  background: #4aa9ff;
+  border-color: #4aa9ff;
+  color: #061621;
+}
+
+.profile-nav em {
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.profile-nav-item.is-disabled {
+  padding: 7px 11px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: rgba(220, 232, 241, 0.45);
+  cursor: not-allowed;
+}
+
+.profile-nav-gap {
+  flex: 1 1 12px;
+}

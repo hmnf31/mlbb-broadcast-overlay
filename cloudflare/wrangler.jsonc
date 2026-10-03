@@ -1,0 +1,48 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "mlbb-broadcast-overlay",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-10-02",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/p/*", "/api/*", "/frontend/*", "/runtime-config.json"],
+    "html_handling": "none"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "SITE_STATE", "class_name": "SiteState" },
+      { "name": "PROFILE_STORE", "class_name": "ProfileStore" }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mlbb-db",
+      "database_id": "a8bfcfa4-505d-483b-a85b-6177c17a56a1",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "exports": {
+    "SiteState": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    "ProfileStore": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    },
+    // Retired: the original single-profile class. Its namespace still existed in the
+    // account but no longer had a matching class, which made every deploy fail with
+    // orphaned_provisioned_namespace. The tombstone retires the namespace on deploy.
+    // Its data was already backed up to live-backup-2026-10-03/ and intentionally
+    // NOT migrated: migrateLegacyIfNeeded() reads the legacy DO name from
+    // ProfileStore, while the live data lived in this separate LiveMatch namespace,
+    // so it would never have been found there anyway.
+    "LiveMatch": {
+      "type": "durable-object",
+      "state": "deleted"
+    }
+  }
+}

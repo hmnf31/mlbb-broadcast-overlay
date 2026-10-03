@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Result Overlay</title>
+    <link rel="stylesheet" href="/frontend/overlay/result/styles.css" />
+  </head>
+  <body>
+    <div class="result-shell" id="result-shell">
+      <div class="result-banner" id="result-banner">
+        <span class="result-headline" id="result-headline">VICTORY</span>
+        <span class="result-subline" id="result-subline"></span>
+      </div>
+
+      <div class="result-score">
+        <div class="result-team result-team-blue">
+          <span class="result-team-name" id="result-blue-name">Blue</span>
+          <span class="result-team-score" id="result-blue-score">0</span>
+        </div>
+        <span class="result-separator">-</span>
+        <div class="result-team result-team-red">
+          <span class="result-team-score" id="result-red-score">0</span>
+          <span class="result-team-name" id="result-red-name">Red</span>
+        </div>
+      </div>
+
+      <dl class="result-stats">
+        <div class="result-stat">
+          <dt>Game</dt>
+          <dd id="result-game">1</dd>
+        </div>
+        <div class="result-stat">
+          <dt>Durasi</dt>
+          <dd id="result-duration">00:00</dd>
+        </div>
+        <div class="result-stat">
+          <dt>Damage</dt>
+          <dd id="result-damage">0</dd>
+        </div>
+        <div class="result-stat">
+          <dt>Durasi serif</dt>
+          <dd id="result-duration-total">-</dd>
+        </div>
+        <div class="result-stat result-stat-mvp">
+          <dt>MVP</dt>
+          <dd id="result-mvp">-</dd>
+        </div>
+      </dl>
+    </div>
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/overlay/result/app.js"></script>
+  </body>
+</html>

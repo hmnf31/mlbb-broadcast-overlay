@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Overlay Custom Settings</title>
+    <link rel="stylesheet" href="/frontend/shared/profile-nav.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #0c1520;
+        color: #edf4ff;
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        padding: 24px;
+      }
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .panel {
+        background: rgba(15, 24, 34, 0.9);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      h1, h2 { margin-top: 0; }
+      form {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        gap: 14px;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 0.82rem;
+        color: #b7c7d8;
+      }
+      input, select {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #edf4ff;
+        font-size: 1rem;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 10px;
+        padding: 11px 18px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .primary { background: #4aa9ff; color: #061621; }
+      .secondary { background: rgba(255,255,255,0.08); color: #edf4ff; }
+      .status { margin-top: 16px; color: #bde3ff; }
+      .connection-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 18px 0 6px; }
+      .connection-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: .82rem; font-weight: 700; color: #061621; background: #6b7d8c; }
+      .connection-badge::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: rgba(6,22,33,.55); }
+      .connection-badge[data-state='online'] { background: #4ade80; }
+      .connection-badge[data-state='connecting'] { background: #ffd76a; }
+      .connection-badge[data-state='offline'] { background: #ff7a7a; }
+      .connection-badge[data-retry]:hover { filter: brightness(1.08); }
+    .profile-banner {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+      background: rgba(255, 214, 106, .12);
+      border: 1px solid rgba(255, 214, 106, .4);
+      color: #ffe6a3; font-size: .84rem; line-height: 1.5;
+    }
+    .profile-banner span { flex: 1 1 240px; }
+    .profile-banner button, .profile-banner a { border-radius: 8px; padding: 7px 12px; font-size: .8rem; }
+      .muted { color: #9bb6cf; }
+      .preview-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+      .preview-hint { margin: 10px 0 6px; color: #9fb3c8; font-size: 13px; }
+.preview-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #171d23; border: 1px solid rgba(255,255,255,0.18); }
+      .preview-item { position: absolute; z-index: 1; white-space: nowrap; line-height: 1.1; font-weight: 700; cursor: move; user-select: none; touch-action: none; outline: 1px dashed rgba(83,220,196,.75); outline-offset: 3px; }
+      .preview-item[src] { object-fit: contain; }
+      .preview-item-empty-image { display: grid; place-items: center; border: 1px dashed #aebdc2; color: #aebdc2; font-size: 12px; }
+      .preview-tools input { max-width: 320px; }
+      .preview-tools a { color: #8fd8ff; }
+      fieldset { grid-column: 1 / -1; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 14px; }
+      legend { padding: 0 8px; color: #dce8f1; font-weight: 700; }
+      .text-style-grid { display: grid; grid-template-columns: minmax(130px, 1.2fr) repeat(2, minmax(120px, 1fr)); gap: 10px 14px; align-items: center; }
+      .text-style-heading { color: #9bb6cf; font-size: .8rem; }
+      .text-style-grid label { min-width: 0; }
+      .text-style-grid input[type=number] { width: 100%; }
+      .manual-controls { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 14px; margin-top: 18px; }
+      .manual-group { padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; }
+      .manual-group h2 { margin: 0 0 10px; font-size: 1rem; }
+      .manual-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; margin-top: 8px; }
+      .manual-row output { min-width: 24px; text-align: center; }
+      .manual-row button { padding: 7px 11px; }
+      .manual-row button:disabled { opacity: .4; cursor: not-allowed; }
+      .custom-items-editor { margin-top: 22px; }
+      .custom-items-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+      .custom-items-toolbar h2 { margin: 0 auto 0 0; font-size: 1.1rem; }
+      .custom-item-editor { padding: 14px 0; border-top: 1px solid rgba(255,255,255,.14); }
+      .custom-item-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      .custom-item-heading strong { margin-right: auto; }
+      .custom-item-fields { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 10px 14px; }
+      .custom-item-fields label { min-width: 0; }
+      .bo2-editor { margin-top: 22px; padding: 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; }
+      .bo2-toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+      .bo2-toolbar h2 { margin: 0 auto 0 0; font-size: 1.1rem; }
+      .bo2-toolbar label { flex-direction: row; align-items: center; gap: 8px; }
+      .bo2-rows { display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 10px; }
+      .bo2-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); }
+      .bo2-row > span:first-child { width: 78px; color: #b7c7d8; font-size: .82rem; }
+      .bo2-dot { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid #8a8f98; background: transparent; }
+      .bo2-dot[data-state='win'] { background: #e5484d; border-color: #e5484d; }
+      .bo2-dot[data-state='lose'] { background: #4a4f58; border-color: #4a4f58; }
+      .bo2-dot:disabled { opacity: .5; cursor: not-allowed; }
+      .ocr-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: .86rem; }
+      .ocr-table th, .ocr-table td { text-align: left; padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      .ocr-table th { color: #9bb6cf; font-weight: 600; }
+      .ocr-table select, .ocr-table input { width: 100%; }
+      .ocr-table input[type='number'] { max-width: 90px; }
+      .ocr-table td[data-locked='true'] { color: #ffd76a; }
+      .secondary-link { color: #9fd0ff; font-size: .82rem; }
+      .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+      .players-columns { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 14px; }
+      .players-side h3 { margin: 0 0 8px; font-size: .95rem; }
+      .players-list { display: grid; gap: 8px; }
+      .player-row { display: grid; grid-template-columns: 34px minmax(90px, 1fr) 34px repeat(3, 52px); gap: 6px; align-items: center; }
+      .player-row img, .player-hero-pick { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); cursor: pointer; }
+      .player-row input { min-width: 0; }
+      .player-row input[type='number'] { max-width: 60px; }
+      .player-items { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: wrap; }
+      .player-items img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid rgba(255,255,255,.14); }
+      .asset-picker { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px; padding: 18px; background: rgba(4, 8, 12, .92); }
+      .asset-picker input[type='search'] { padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color: #eef4fb; }
+      .asset-picker-grid { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; align-content: start; }
+      .asset-picker-grid button { padding: 2px; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; background: transparent; cursor: pointer; }
+      .asset-picker-grid button:hover { border-color: #ffd76a; }
+      .asset-picker-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; }
+      @media (max-width: 760px) { .custom-item-fields { grid-template-columns: repeat(2, minmax(130px, 1fr)); } }
+      @media (max-width: 760px) { form { grid-template-columns: repeat(2, minmax(130px, 1fr)); } }
+      @media (max-width: 760px) { .manual-controls { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="panel">
+        <h1>Gameplay Overlay Settings</h1>
+        <p class="muted">Edit semua elemen teks dan gambar yang akan ditampilkan di overlay. Data tersimpan di browser dan bisa langsung dipakai.</p>
+        <div class="connection-bar">
+          <button type="button" class="connection-badge" id="connection-badge" data-state="connecting" data-retry="1" title="Klik untuk mencoba menyambung ulang">Menyambung ke live server...</button>
+          <span class="muted" id="connection-detail">Belum tersambung.</span>
+        </div>
+        <nav class="profile-nav" id="profile-nav" aria-label="Halaman profil ini"></nav>
+        <div class="profile-banner" id="profile-banner" hidden>
+          <span id="profile-banner-text"></span>
+          <button type="button" id="claim-button" class="secondary" hidden>Klaim profil ini</button>
+          <a class="secondary" href="/">Beranda</a>
+        </div>
+        <p class="preview-hint">Seret item di preview untuk memindahkannya. Posisi langsung disimpan dan dikirim ke overlay.</p>
+        <div class="preview-tools">
+          <label>PNG header untuk gameplay <input id="header-image-file" type="file" accept="image/png" /></label>
+          <a id="debug-link" href="/p/default/debug/" target="_blank" rel="noreferrer">Pengaturan dan tes ROI OCR</a>
+        </div>
+        <div class="preview-stage" id="preview-stage" aria-label="Drag overlay items to position"></div>
+        <form id="control-form">
+          <label>Nama Turnamen <input name="tournamentName" type="text" value="MLBB Official League" /></label>
+          <label>Ronde / Judul Match <input name="roundName" type="text" value="Grand Final" /></label>
+          <label>Nama Host <input name="hostName" type="text" value="Lala" /></label>
+          <label>Nama Caster <input name="casterName" type="text" value="Adit" /></label>
+          <label>Nama Tim Biru <input name="blueName" type="text" value="Blue Phoenix" /></label>
+          <label>Nama Tim Merah <input name="redName" type="text" value="Red Viper" /></label>
+          <label>Logo Tim Biru (URL / src) <input name="blueLogo" type="text" value="/assets/teams/blue-phoenix.svg" /></label>
+          <label>Logo Tim Merah (URL / src) <input name="redLogo" type="text" value="/assets/teams/red-viper.svg" /></label>
+          <label>Lebar PNG header (px) <input name="headerWidth" type="number" min="50" max="1280" step="10" value="1280" /></label>
+          <label>Skala PNG header <input id="header-width-slider" type="range" min="50" max="1280" step="10" value="1280" /></label>
+          <label>Waktu Game (detik) <input name="timer" type="number" value="1325" /></label>
+          <label>Kill Tim Biru <input name="blueKills" type="number" value="9" /></label>
+          <label>Kill Tim Merah <input name="redKills" type="number" value="7" /></label>
+          <label>Gold Tim Biru <input name="blueGold" type="number" value="18840" /></label>
+          <label>Gold Tim Merah <input name="redGold" type="number" value="17520" /></label>
+          
+          <label>Turtle Biru <input name="turtleBlue" type="number" value="1" /></label>
+          <label>Turtle Merah <input name="turtleRed" type="number" value="0" /></label>
+          <label>Lord Biru <input name="lordBlue" type="number" value="1" /></label>
+          <label>Lord Merah <input name="lordRed" type="number" value="0" /></label>
+          <label>Tower Biru <input name="towerBlue" type="number" value="3" /></label>
+          <label>Tower Merah <input name="towerRed" type="number" value="2" /></label>
+          <label>Mode Turtle <select name="turtleMode"><option value="auto">Otomatis OCR</option><option value="manual">Manual</option></select></label>
+          <label>Mode Lord <select name="lordMode"><option value="auto">Otomatis OCR</option><option value="manual">Manual</option></select></label>
+          <label>Mode Tower <select name="towerMode"><option value="auto">Otomatis OCR</option><option value="manual" selected>Manual</option></select></label>
+          <label>Font Family <select name="fontFamily"><option value="Segoe UI, Tahoma, sans-serif" selected>Segoe UI</option><option value="Arial, sans-serif">Arial</option><option value="Verdana, sans-serif">Verdana</option><option value="Tahoma, sans-serif">Tahoma</option></select></label>
+
+          <fieldset>
+            <legend>Font per item teks</legend>
+            <div class="text-style-grid">
+              <span class="text-style-heading">Item</span><span class="text-style-heading">Ukuran (px)</span><span class="text-style-heading">Warna</span>
+              <span>Nama turnamen</span><input name="itemSize_tournamentName" type="number" min="6" max="200" value="12" /><input name="itemColor_tournamentName" type="color" value="#a5b6ca" />
+              <span>Nama ronde</span><input name="itemSize_roundName" type="number" min="6" max="200" value="12" /><input name="itemColor_roundName" type="color" value="#a5b6ca" />
+              <span>Nama tim biru</span><input name="itemSize_blueName" type="number" min="6" max="200" value="18" /><input name="itemColor_blueName" type="color" value="#5aa9ff" />
+              <span>Kill biru</span><input name="itemSize_blueKills" type="number" min="6" max="200" value="28" /><input name="itemColor_blueKills" type="color" value="#ffd76a" />
+              <span>Time</span><input name="itemSize_matchTimer" type="number" min="6" max="200" value="30" /><input name="itemColor_matchTimer" type="color" value="#edf4ff" />
+              <span>Nama tim merah</span><input name="itemSize_redName" type="number" min="6" max="200" value="18" /><input name="itemColor_redName" type="color" value="#ff6666" />
+              <span>Kill merah</span><input name="itemSize_redKills" type="number" min="6" max="200" value="28" /><input name="itemColor_redKills" type="color" value="#ffd76a" />
+              <span>Gold biru</span><input name="itemSize_blueGold" type="number" min="6" max="200" value="16" /><input name="itemColor_blueGold" type="color" value="#ffd76a" />
+              <span>Gold merah</span><input name="itemSize_redGold" type="number" min="6" max="200" value="16" /><input name="itemColor_redGold" type="color" value="#ffd76a" />
+<span>Selisih gold</span><input name="itemSize_goldDiff" type="number" min="6" max="200" value="18" /><input name="itemColor_goldDiff" type="color" value="#a5b6ca" />
+              <span>Jumlah Turtle biru</span><input name="itemSize_turtleBlue" type="number" min="6" max="200" value="12" /><input name="itemColor_turtleBlue" type="color" value="#a5b6ca" />
+              <span>Jumlah Turtle merah</span><input name="itemSize_turtleRed" type="number" min="6" max="200" value="12" /><input name="itemColor_turtleRed" type="color" value="#a5b6ca" />
+              <span>Jumlah Lord biru</span><input name="itemSize_lordBlue" type="number" min="6" max="200" value="12" /><input name="itemColor_lordBlue" type="color" value="#a5b6ca" />
+              <span>Jumlah Lord merah</span><input name="itemSize_lordRed" type="number" min="6" max="200" value="12" /><input name="itemColor_lordRed" type="color" value="#a5b6ca" />
+              <span>Jumlah Tower biru</span><input name="itemSize_towerBlue" type="number" min="6" max="200" value="12" /><input name="itemColor_towerBlue" type="color" value="#a5b6ca" />
+              <span>Jumlah Tower merah</span><input name="itemSize_towerRed" type="number" min="6" max="200" value="12" /><input name="itemColor_towerRed" type="color" value="#a5b6ca" />
+              <span>Caster</span><input name="itemSize_casterName" type="number" min="6" max="200" value="12" /><input name="itemColor_casterName" type="color" value="#ffd76a" />
+              <span>Host</span><input name="itemSize_hostName" type="number" min="6" max="200" value="12" /><input name="itemColor_hostName" type="color" value="#ffd76a" />
+            </div>
+          </fieldset>
+        </form>
+
+        <section class="custom-items-editor">
+          <div class="custom-items-toolbar">
+            <h2>Item custom</h2>
+            <button type="button" class="secondary" id="add-custom-text">Tambah Teks</button>
+            <button type="button" class="secondary" id="add-custom-image">Tambah Gambar</button>
+          </div>
+          <div id="custom-items-list"></div>
+        </section>
+
+        <section class="bo2-editor" id="bo2-editor">
+          <div class="bo2-toolbar">
+            <h2>Seri BO2</h2>
+            <label><input type="checkbox" id="bo2-enabled" /> Tampilkan indikator BO2</label>
+            <button type="button" class="secondary" id="bo2-reset">Reset seri</button>
+          </div>
+          <div class="bo2-rows">
+            <div class="bo2-row" data-team="blue">
+              <span>Blue</span>
+              <button type="button" class="bo2-dot" data-game="0" title="Game 1"></button>
+              <button type="button" class="bo2-dot" data-game="1" title="Game 2"></button>
+            </div>
+            <div class="bo2-row" data-team="red">
+              <span>Red</span>
+              <button type="button" class="bo2-dot" data-game="0" title="Game 1"></button>
+              <button type="button" class="bo2-dot" data-game="1" title="Game 2"></button>
+            </div>
+          </div>
+          <p class="preview-hint">Klik titik untuk menandai tim yang menang di game itu. Klik lagi titik yang sama untuk mengosongkan.</p>
+        </section>
+
+        <section class="bo2-editor" id="ocr-editor">
+          <div class="bo2-toolbar">
+            <h2>OCR &amp; Field Lock</h2>
+            <label><input type="checkbox" id="ocr-enabled" /> Aktikan OCR untuk profil ini</label>
+            <span class="preview-hint" id="ocr-sync-note">Mode dan ambang confidence tersimpan di server profil.</span>
+          </div>
+          <table class="ocr-table">
+            <thead>
+              <tr>
+                <th scope="col">Field</th>
+                <th scope="col">Mode</th>
+                <th scope="col">Ambang confidence</th>
+              </tr>
+            </thead>
+            <tbody id="ocr-field-rows"></tbody>
+          </table>
+          <p class="preview-hint">Mode <strong>kunci</strong> membuat OCR tidak boleh menimpa angka itu: nilainya hanya berubah dari panel ini. Ini yang dipakai saat operator adjusting angka secara manual.</p>
+        </section>
+
+        <section class="bo2-editor" id="result-editor">
+          <div class="bo2-toolbar">
+            <h2>Layar Hasil</h2>
+            <label><input type="checkbox" id="result-visible" /> Tampilkan layar hasil</label>
+            <a class="secondary-link" id="result-obs-link" href="#" target="_blank" rel="noopener">Buka browser source result</a>
+          </div>
+          <div class="result-grid">
+            <label><span>Headline</span><input type="text" id="result-headline-input" maxlength="48" /></label>
+            <label><span>Subline</span><input type="text" id="result-subline-input" maxlength="120" /></label>
+            <label><span>Game</span><input type="number" id="result-game-input" min="1" max="99" /></label>
+            <label><span>Best of</span><input type="number" id="result-bestof-input" min="1" max="99" /></label>
+            <label><span>Durasi (detik)</span><input type="number" id="result-duration-input" min="0" max="86400" /></label>
+            <label><span>Damage diberikan</span><input type="number" id="result-dealt-input" min="0" /></label>
+            <label><span>Damage diterima</span><input type="number" id="result-taken-input" min="0" /></label>
+            <label><span>MVP</span><input type="text" id="result-mvp-input" maxlength="64" /></label>
+          </div>
+          <p class="preview-hint" id="result-series-note">Skor seri mengikuti Seri BO2 di atas selama indikatornya aktif.</p>
+        </section>
+
+        <section class="bo2-editor" id="players-editor">
+          <div class="bo2-toolbar">
+            <h2>Player Cards 5v5</h2>
+            <span class="preview-hint" id="players-note">Pilih hero dari library. Data ini milik profil ini dan tidak ikut profil lain.</span>
+          </div>
+          <div class="players-columns">
+            <div class="players-side">
+              <h3>Blue</h3>
+              <div class="players-list" id="players-blue"></div>
+            </div>
+            <div class="players-side">
+              <h3>Red</h3>
+              <div class="players-list" id="players-red"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="actions">
+          <button type="button" class="primary" id="save-button">Simpan Pengaturan</button>
+          <button type="button" class="secondary" id="apply-button">Kirim Update Live</button>
+          <button type="button" class="secondary" id="reset-button">Reset Default</button>
+        </div>
+
+        <div class="manual-controls">
+          <section class="manual-group" data-manual-group="turtle">
+            <h2>Turtle <span data-mode-label="turtle"></span></h2>
+            <div class="manual-row"><span>Biru</span><button type="button" class="secondary" data-stat="turtleBlue" data-delta="-1">-</button><output id="turtle-blue-value">1</output><button type="button" class="secondary" data-stat="turtleBlue" data-delta="1">+</button></div>
+            <div class="manual-row"><span>Merah</span><button type="button" class="secondary" data-stat="turtleRed" data-delta="-1">-</button><output id="turtle-red-value">0</output><button type="button" class="secondary" data-stat="turtleRed" data-delta="1">+</button></div>
+          </section>
+          <section class="manual-group" data-manual-group="lord">
+            <h2>Lord <span data-mode-label="lord"></span></h2>
+            <div class="manual-row"><span>Biru</span><button type="button" class="secondary" data-stat="lordBlue" data-delta="-1">-</button><output id="lord-blue-value">1</output><button type="button" class="secondary" data-stat="lordBlue" data-delta="1">+</button></div>
+            <div class="manual-row"><span>Merah</span><button type="button" class="secondary" data-stat="lordRed" data-delta="-1">-</button><output id="lord-red-value">0</output><button type="button" class="secondary" data-stat="lordRed" data-delta="1">+</button></div>
+          </section>
+          <section class="manual-group" data-manual-group="tower">
+            <h2>Tower <span data-mode-label="tower"></span></h2>
+            <div class="manual-row"><span>Biru</span><button type="button" class="secondary" data-stat="towerBlue" data-delta="-1">-</button><output id="tower-blue-value">3</output><button type="button" class="secondary" data-stat="towerBlue" data-delta="1">+</button></div>
+            <div class="manual-row"><span>Merah</span><button type="button" class="secondary" data-stat="towerRed" data-delta="-1">-</button><output id="tower-red-value">2</output><button type="button" class="secondary" data-stat="towerRed" data-delta="1">+</button></div>
+          </section>
+        </div>
+
+        <div id="status" class="status">Siap menerima konfigurasi.</div>
+      </div>
+    </div>
+
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/control/app.js"></script>
+  </body>
+</html>

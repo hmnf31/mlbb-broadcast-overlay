@@ -1,0 +1,49 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MLBB Gameplay Overlay</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="overlay-shell" id="overlay-shell">
+      <img class="item header-image" id="header-image" alt="Gameplay header" hidden />
+      <div id="custom-items-layer" class="custom-items-layer"></div>
+      <div class="item" id="tournament-name">MLBB Official League</div>
+      <div class="item" id="round-name">Grand Final</div>
+
+      <img class="item image-item" id="blue-logo" src="/assets/teams/blue-phoenix.svg" alt="Blue Team" />
+      <div class="item" id="blue-name">Blue Phoenix</div>
+      <div class="item" id="blue-kills">9</div>
+
+      <div class="item" id="match-timer">22:05</div>
+
+      <img class="item image-item" id="red-logo" src="/assets/teams/red-viper.svg" alt="Red Team" />
+      <div class="item" id="red-name">Red Viper</div>
+      <div class="item" id="red-kills">7</div>
+
+      <div class="item" id="blue-gold">18.8K</div>
+      <div class="item" id="gold-diff">+1.3K</div>
+    <div class="item bo2-row" id="bo2-blue" hidden></div>
+    <div class="item bo2-row bo2-row-red" id="bo2-red" hidden></div>
+      <div class="item" id="red-gold">17.5K</div>
+      <div class="item" id="turtle-blue">1</div>
+      <div class="item" id="turtle-red">0</div>
+      <div class="item" id="lord-blue">1</div>
+      <div class="item" id="lord-red">0</div>
+      <div class="item" id="tower-blue">3</div>
+      <div class="item" id="tower-red">2</div>
+
+      <div class="item roster" id="roster-blue" hidden></div>
+      <div class="item roster" id="roster-red" hidden></div>
+
+      <div class="item" id="caster-name">Adit</div>
+      <div class="item" id="host-name">Lala</div>
+    </div>
+
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/overlay/gameplay/app.js"></script>
+  </body>
+</html>

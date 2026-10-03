@@ -1,0 +1,81 @@
+﻿<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ROI OCR Calibration</title>
+    <link rel="stylesheet" href="/frontend/shared/profile-nav.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 22px; color: #edf4ff; background: #11191d; font-family: 'Segoe UI', sans-serif; }
+      main { max-width: 1320px; margin: auto; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      p { color: #aebdc2; }
+      .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+      button, .file-button { border: 1px solid #50615e; border-radius: 4px; padding: 9px 13px; background: #24312f; color: #edf4ff; font-weight: 650; cursor: pointer; }
+      button.primary { background: #b7f06a; border-color: #b7f06a; color: #182414; }
+      button.live { background: #f07868; border-color: #f07868; color: #28120f; }
+      button.active { border-color: #b7f06a; color: #b7f06a; }
+      button:disabled { opacity: .55; cursor: wait; }
+      input[type=file] { max-width: 250px; }
+      .source-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #182120; border: 1px solid #45534f; }
+      #source-image, #source-video, #source-placeholder { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+      #source-video, #source-image { display: none; }
+      #source-placeholder { display: grid; place-items: center; color: #aebdc2; text-align: center; padding: 20px; }
+      #roi-layer { position: absolute; inset: 0; }
+      .roi { position: absolute; min-width: 3%; min-height: 4%; overflow: hidden; resize: both; touch-action: none; border: 2px solid #a8ed68; background: rgba(42, 76, 32, .18); color: white; font-size: 12px; text-shadow: 0 1px 3px black; }
+      .roi[data-group="red"] { border-color: #ff796e; background: rgba(98, 32, 32, .18); }
+      .roi-label { display: inline-block; padding: 2px 4px; background: rgba(0,0,0,.72); pointer-events: none; }
+      .results { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 8px; }
+      .result { padding: 10px; border-left: 2px solid #667570; background: #1b2423; overflow-wrap: anywhere; }
+      .result strong { display: block; color: #b7f06a; margin-bottom: 4px; }
+      .result small { display: block; color: #8fa3ad; margin-top: 4px; }
+      .result[data-accepted='false'] { border-left-color: #55605f; opacity: .72; }
+      .result[data-decision='accepted'] { border-left-color: #b7f06a; }
+      .result[data-decision='majority'], .result[data-decision='confirm'] { border-left-color: #ffd76a; }
+      #status { min-height: 24px; margin: 12px 0; color: #b7f06a; }
+      .live-link { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 12px; border-radius: 999px; font-size: .8rem; font-weight: 700; background: rgba(255,255,255,.08); color: #cfd8e3; }
+      .live-link::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #7d8a99; }
+      .live-link[data-state='online'] { color: #7dffb0; }
+      .live-link[data-state='online']::before { background: #4ade80; }
+      .live-link[data-state='connecting'] { color: #ffd76a; }
+      .live-link[data-state='connecting']::before { background: #ffd76a; }
+      .live-link[data-state='offline'] { color: #ff9d9d; }
+      .live-link[data-state='offline']::before { background: #ff7a7a; }
+      video.capture-source { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+      @media (max-width: 700px) { body { padding: 12px; } .results { grid-template-columns: repeat(2, minmax(140px, 1fr)); } }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>ROI OCR Calibration</h1>
+      <nav class="profile-nav" id="profile-nav" aria-label="Halaman profil ini"></nav>
+      <p>Atur ROI sekali lalu tersimpan otomatis di browser ini. Gunakan Tes OCR untuk satu kali pembacaan, atau Mulai OCR Live untuk terus membaca layar dan mengirim update sampai dihentikan.</p>
+      <div class="toolbar">
+        <button class="primary" id="capture-screen" type="button">Pilih layar/game</button>
+        <label class="file-button">Buka screenshot <input id="image-file" type="file" accept="image/*" /></label>
+        <button id="test-ocr" type="button">Tes OCR semua ROI</button>
+        <button class="primary" id="start-live-ocr" type="button">Mulai OCR Live</button>
+        <button class="live" id="stop-live-ocr" type="button" disabled>Stop OCR Live</button>
+        <button id="save-roi" type="button">Simpan ROI</button>
+        <button id="reset-roi" type="button">Reset ROI</button>
+        <button id="reset-anchor" type="button">Reset anchor OCR</button>
+      </div>
+      <div class="source-frame" id="source-frame">
+        <img id="source-image" alt="Screenshot game untuk kalibrasi OCR" />
+        <video id="source-video" class="capture-source" autoplay muted playsinline></video>
+        <div id="source-placeholder">Pilih layar/game untuk menangkap jendela permainan, atau buka screenshot.</div>
+        <div id="roi-layer"></div>
+      </div>
+      <div id="status" role="status">Siap. ROI awal hanya contoh; sesuaikan dengan HUD game Anda.</div>
+      <div id="live-link" class="live-link" data-state="connecting">Menyambung ke live server...</div>
+      <section class="results" id="results" aria-live="polite"></section>
+      <canvas id="crop-canvas" hidden></canvas>
+    </main>
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/ocr-guard.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/debug/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1498 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-03",
+  "basePath": "/assets/",
+  "categories": {
+    "heroes": {
+      "label": "Hero",
+      "items": [
+        {
+          "id": "aamon",
+          "name": "Aamon",
+          "path": "/assets/heroes/aamon.png",
+          "role": "assassin"
+        },
+        {
+          "id": "akai",
+          "name": "Akai",
+          "path": "/assets/heroes/akai.png",
+          "role": "tank"
+        },
+        {
+          "id": "aldous",
+          "name": "Aldous",
+          "path": "/assets/heroes/aldous.png",
+          "role": "fighter"
+        },
+        {
+          "id": "alice",
+          "name": "Alice",
+          "path": "/assets/heroes/alice.png",
+          "role": "tank, mage"
+        },
+        {
+          "id": "alpha",
+          "name": "Alpha",
+          "path": "/assets/heroes/alpha.png",
+          "role": "fighter"
+        },
+        {
+          "id": "alucard",
+          "name": "Alucard",
+          "path": "/assets/heroes/alucard.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "angela",
+          "name": "Angela",
+          "path": "/assets/heroes/angela.png",
+          "role": "support"
+        },
+        {
+          "id": "argus",
+          "name": "Argus",
+          "path": "/assets/heroes/argus.png",
+          "role": "fighter"
+        },
+        {
+          "id": "arlott",
+          "name": "Arlott",
+          "path": "/assets/heroes/arlott.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "atlas",
+          "name": "Atlas",
+          "path": "/assets/heroes/atlas.png",
+          "role": "tank"
+        },
+        {
+          "id": "aulus",
+          "name": "Aulus",
+          "path": "/assets/heroes/aulus.png",
+          "role": "fighter"
+        },
+        {
+          "id": "aurora",
+          "name": "Aurora",
+          "path": "/assets/heroes/aurora.png",
+          "role": "mage"
+        },
+        {
+          "id": "badang",
+          "name": "Badang",
+          "path": "/assets/heroes/badang.png",
+          "role": "fighter"
+        },
+        {
+          "id": "balmond",
+          "name": "Balmond",
+          "path": "/assets/heroes/balmond.png",
+          "role": "fighter"
+        },
+        {
+          "id": "bane",
+          "name": "Bane",
+          "path": "/assets/heroes/bane.png",
+          "role": "fighter, mage"
+        },
+        {
+          "id": "barats",
+          "name": "Barats",
+          "path": "/assets/heroes/barats.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "baxia",
+          "name": "Baxia",
+          "path": "/assets/heroes/baxia.png",
+          "role": "tank"
+        },
+        {
+          "id": "beatrix",
+          "name": "Beatrix",
+          "path": "/assets/heroes/beatrix.png",
+          "role": "marksman"
+        },
+        {
+          "id": "belerick",
+          "name": "Belerick",
+          "path": "/assets/heroes/belerick.png",
+          "role": "tank"
+        },
+        {
+          "id": "benedetta",
+          "name": "Benedetta",
+          "path": "/assets/heroes/benedetta.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "brody",
+          "name": "Brody",
+          "path": "/assets/heroes/brody.png",
+          "role": "marksman"
+        },
+        {
+          "id": "bruno",
+          "name": "Bruno",
+          "path": "/assets/heroes/bruno.png",
+          "role": "marksman"
+        },
+        {
+          "id": "carmilla",
+          "name": "Carmilla",
+          "path": "/assets/heroes/carmilla.png",
+          "role": "tank, support"
+        },
+        {
+          "id": "cecilion",
+          "name": "Cecilion",
+          "path": "/assets/heroes/cecilion.png",
+          "role": "mage"
+        },
+        {
+          "id": "chang_e",
+          "name": "Chang'e",
+          "path": "/assets/heroes/chang27e.png",
+          "role": "mage"
+        },
+        {
+          "id": "chip",
+          "name": "Chip",
+          "path": "/assets/heroes/chip.png",
+          "role": "tank, support"
+        },
+        {
+          "id": "chou",
+          "name": "Chou",
+          "path": "/assets/heroes/chou.png",
+          "role": "fighter"
+        },
+        {
+          "id": "cici",
+          "name": "Cici",
+          "path": "/assets/heroes/cici.png",
+          "role": "fighter"
+        },
+        {
+          "id": "claude",
+          "name": "Claude",
+          "path": "/assets/heroes/claude.png",
+          "role": "marksman"
+        },
+        {
+          "id": "clint",
+          "name": "Clint",
+          "path": "/assets/heroes/clint.png",
+          "role": "marksman"
+        },
+        {
+          "id": "cyclops",
+          "name": "Cyclops",
+          "path": "/assets/heroes/cyclops.png",
+          "role": "mage"
+        },
+        {
+          "id": "diggie",
+          "name": "Diggie",
+          "path": "/assets/heroes/diggie.png",
+          "role": "support"
+        },
+        {
+          "id": "dyrroth",
+          "name": "Dyrroth",
+          "path": "/assets/heroes/dyrroth.png",
+          "role": "fighter"
+        },
+        {
+          "id": "edith",
+          "name": "Edith",
+          "path": "/assets/heroes/edith.png",
+          "role": "tank, marksman"
+        },
+        {
+          "id": "esmeralda",
+          "name": "Esmeralda",
+          "path": "/assets/heroes/esmeralda.png",
+          "role": "tank, mage"
+        },
+        {
+          "id": "estes",
+          "name": "Estes",
+          "path": "/assets/heroes/estes.png",
+          "role": "support"
+        },
+        {
+          "id": "eudora",
+          "name": "Eudora",
+          "path": "/assets/heroes/eudora.png",
+          "role": "mage"
+        },
+        {
+          "id": "fanny",
+          "name": "Fanny",
+          "path": "/assets/heroes/fanny.png",
+          "role": "assassin"
+        },
+        {
+          "id": "faramis",
+          "name": "Faramis",
+          "path": "/assets/heroes/faramis.png",
+          "role": "mage, support"
+        },
+        {
+          "id": "floryn",
+          "name": "Floryn",
+          "path": "/assets/heroes/floryn.png",
+          "role": "support"
+        },
+        {
+          "id": "franco",
+          "name": "Franco",
+          "path": "/assets/heroes/franco.png",
+          "role": "tank"
+        },
+        {
+          "id": "fredrinn",
+          "name": "Fredrinn",
+          "path": "/assets/heroes/fredrinn.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "freya",
+          "name": "Freya",
+          "path": "/assets/heroes/freya.png",
+          "role": "fighter"
+        },
+        {
+          "id": "gatotkaca",
+          "name": "Gatotkaca",
+          "path": "/assets/heroes/gatotkaca.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "gloo",
+          "name": "Gloo",
+          "path": "/assets/heroes/gloo.png",
+          "role": "tank"
+        },
+        {
+          "id": "gord",
+          "name": "Gord",
+          "path": "/assets/heroes/gord.png",
+          "role": "mage"
+        },
+        {
+          "id": "granger",
+          "name": "Granger",
+          "path": "/assets/heroes/granger.png",
+          "role": "marksman"
+        },
+        {
+          "id": "grock",
+          "name": "Grock",
+          "path": "/assets/heroes/grock.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "guinevere",
+          "name": "Guinevere",
+          "path": "/assets/heroes/guinevere.png",
+          "role": "fighter"
+        },
+        {
+          "id": "gusion",
+          "name": "Gusion",
+          "path": "/assets/heroes/gusion.png",
+          "role": "assassin"
+        },
+        {
+          "id": "hanabi",
+          "name": "Hanabi",
+          "path": "/assets/heroes/hanabi.png",
+          "role": "marksman"
+        },
+        {
+          "id": "hanzo",
+          "name": "Hanzo",
+          "path": "/assets/heroes/hanzo.png",
+          "role": "assassin"
+        },
+        {
+          "id": "harith",
+          "name": "Harith",
+          "path": "/assets/heroes/harith.png",
+          "role": "mage"
+        },
+        {
+          "id": "harley",
+          "name": "Harley",
+          "path": "/assets/heroes/harley.png",
+          "role": "assassin, mage"
+        },
+        {
+          "id": "hayabusa",
+          "name": "Hayabusa",
+          "path": "/assets/heroes/hayabusa.png",
+          "role": "assassin"
+        },
+        {
+          "id": "helcurt",
+          "name": "Helcurt",
+          "path": "/assets/heroes/helcurt.png",
+          "role": "assassin"
+        },
+        {
+          "id": "hilda",
+          "name": "Hilda",
+          "path": "/assets/heroes/hilda.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "hirara",
+          "name": "Hirara",
+          "path": "/assets/heroes/hirara.png",
+          "role": "assassin"
+        },
+        {
+          "id": "hylos",
+          "name": "Hylos",
+          "path": "/assets/heroes/hylos.png",
+          "role": "tank"
+        },
+        {
+          "id": "irithel",
+          "name": "Irithel",
+          "path": "/assets/heroes/irithel.png",
+          "role": "marksman"
+        },
+        {
+          "id": "ixia",
+          "name": "Ixia",
+          "path": "/assets/heroes/ixia.png",
+          "role": "marksman"
+        },
+        {
+          "id": "jawhead",
+          "name": "Jawhead",
+          "path": "/assets/heroes/jawhead.png",
+          "role": "fighter"
+        },
+        {
+          "id": "johnson",
+          "name": "Johnson",
+          "path": "/assets/heroes/johnson.png",
+          "role": "tank, support"
+        },
+        {
+          "id": "joy",
+          "name": "Joy",
+          "path": "/assets/heroes/joy.png",
+          "role": "assassin"
+        },
+        {
+          "id": "julian",
+          "name": "Julian",
+          "path": "/assets/heroes/julian.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "kadita",
+          "name": "Kadita",
+          "path": "/assets/heroes/kadita.png",
+          "role": "assassin, mage"
+        },
+        {
+          "id": "kagura",
+          "name": "Kagura",
+          "path": "/assets/heroes/kagura.png",
+          "role": "mage"
+        },
+        {
+          "id": "kaja",
+          "name": "Kaja",
+          "path": "/assets/heroes/kaja.png",
+          "role": "fighter, support"
+        },
+        {
+          "id": "kalea",
+          "name": "Kalea",
+          "path": "/assets/heroes/kalea.png",
+          "role": "fighter, support"
+        },
+        {
+          "id": "karina",
+          "name": "Karina",
+          "path": "/assets/heroes/karina.png",
+          "role": "assassin"
+        },
+        {
+          "id": "karrie",
+          "name": "Karrie",
+          "path": "/assets/heroes/karrie.png",
+          "role": "marksman"
+        },
+        {
+          "id": "khaleed",
+          "name": "Khaleed",
+          "path": "/assets/heroes/khaleed.png",
+          "role": "fighter"
+        },
+        {
+          "id": "khufra",
+          "name": "Khufra",
+          "path": "/assets/heroes/khufra.png",
+          "role": "tank"
+        },
+        {
+          "id": "kimmy",
+          "name": "Kimmy",
+          "path": "/assets/heroes/kimmy.png",
+          "role": "mage, marksman"
+        },
+        {
+          "id": "lancelot",
+          "name": "Lancelot",
+          "path": "/assets/heroes/lancelot.png",
+          "role": "assassin"
+        },
+        {
+          "id": "lapu_lapu",
+          "name": "Lapu-Lapu",
+          "path": "/assets/heroes/lapu-lapu.png",
+          "role": "fighter"
+        },
+        {
+          "id": "layla",
+          "name": "Layla",
+          "path": "/assets/heroes/layla.png",
+          "role": "marksman"
+        },
+        {
+          "id": "leomord",
+          "name": "Leomord",
+          "path": "/assets/heroes/leomord.png",
+          "role": "fighter"
+        },
+        {
+          "id": "lesley",
+          "name": "Lesley",
+          "path": "/assets/heroes/lesley.png",
+          "role": "assassin, marksman"
+        },
+        {
+          "id": "ling",
+          "name": "Ling",
+          "path": "/assets/heroes/ling.png",
+          "role": "assassin"
+        },
+        {
+          "id": "lolita",
+          "name": "Lolita",
+          "path": "/assets/heroes/lolita.png",
+          "role": "tank, support"
+        },
+        {
+          "id": "lukas",
+          "name": "Lukas",
+          "path": "/assets/heroes/lukas.png",
+          "role": "fighter"
+        },
+        {
+          "id": "lunox",
+          "name": "Lunox",
+          "path": "/assets/heroes/lunox.png",
+          "role": "mage"
+        },
+        {
+          "id": "luo_yi",
+          "name": "Luo Yi",
+          "path": "/assets/heroes/luo_yi.png",
+          "role": "mage"
+        },
+        {
+          "id": "lylia",
+          "name": "Lylia",
+          "path": "/assets/heroes/lylia.png",
+          "role": "mage"
+        },
+        {
+          "id": "marcel",
+          "name": "Marcel",
+          "path": "/assets/heroes/marcel.png",
+          "role": "support"
+        },
+        {
+          "id": "martis",
+          "name": "Martis",
+          "path": "/assets/heroes/martis.png",
+          "role": "fighter"
+        },
+        {
+          "id": "masha",
+          "name": "Masha",
+          "path": "/assets/heroes/masha.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "mathilda",
+          "name": "Mathilda",
+          "path": "/assets/heroes/mathilda.png",
+          "role": "assassin, support"
+        },
+        {
+          "id": "melissa",
+          "name": "Melissa",
+          "path": "/assets/heroes/melissa.png",
+          "role": "marksman"
+        },
+        {
+          "id": "minotaur",
+          "name": "Minotaur",
+          "path": "/assets/heroes/minotaur.png",
+          "role": "tank, support"
+        },
+        {
+          "id": "minsitthar",
+          "name": "Minsitthar",
+          "path": "/assets/heroes/minsitthar.png",
+          "role": "fighter"
+        },
+        {
+          "id": "miya",
+          "name": "Miya",
+          "path": "/assets/heroes/miya.png",
+          "role": "marksman"
+        },
+        {
+          "id": "moskov",
+          "name": "Moskov",
+          "path": "/assets/heroes/moskov.png",
+          "role": "marksman"
+        },
+        {
+          "id": "nana",
+          "name": "Nana",
+          "path": "/assets/heroes/nana.png",
+          "role": "mage"
+        },
+        {
+          "id": "natalia",
+          "name": "Natalia",
+          "path": "/assets/heroes/natalia.png",
+          "role": "assassin"
+        },
+        {
+          "id": "natan",
+          "name": "Natan",
+          "path": "/assets/heroes/natan.png",
+          "role": "marksman"
+        },
+        {
+          "id": "nolan",
+          "name": "Nolan",
+          "path": "/assets/heroes/nolan.png",
+          "role": "assassin"
+        },
+        {
+          "id": "novaria",
+          "name": "Novaria",
+          "path": "/assets/heroes/novaria.png",
+          "role": "mage"
+        },
+        {
+          "id": "obsidia",
+          "name": "Obsidia",
+          "path": "/assets/heroes/obsidia.png",
+          "role": "marksman"
+        },
+        {
+          "id": "odette",
+          "name": "Odette",
+          "path": "/assets/heroes/odette.png",
+          "role": "mage"
+        },
+        {
+          "id": "paquito",
+          "name": "Paquito",
+          "path": "/assets/heroes/paquito.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "pharsa",
+          "name": "Pharsa",
+          "path": "/assets/heroes/pharsa.png",
+          "role": "mage"
+        },
+        {
+          "id": "phoveus",
+          "name": "Phoveus",
+          "path": "/assets/heroes/phoveus.png",
+          "role": "fighter"
+        },
+        {
+          "id": "popol_and_kupa",
+          "name": "Popol and Kupa",
+          "path": "/assets/heroes/popol_and_kupa.png",
+          "role": "marksman"
+        },
+        {
+          "id": "rafaela",
+          "name": "Rafaela",
+          "path": "/assets/heroes/rafaela.png",
+          "role": "support"
+        },
+        {
+          "id": "roger",
+          "name": "Roger",
+          "path": "/assets/heroes/roger.png",
+          "role": "fighter, marksman"
+        },
+        {
+          "id": "ruby",
+          "name": "Ruby",
+          "path": "/assets/heroes/ruby.png",
+          "role": "fighter"
+        },
+        {
+          "id": "saber",
+          "name": "Saber",
+          "path": "/assets/heroes/saber.png",
+          "role": "assassin"
+        },
+        {
+          "id": "selena",
+          "name": "Selena",
+          "path": "/assets/heroes/selena.png",
+          "role": "assassin, mage"
+        },
+        {
+          "id": "silvanna",
+          "name": "Silvanna",
+          "path": "/assets/heroes/silvanna.png",
+          "role": "fighter"
+        },
+        {
+          "id": "sora",
+          "name": "Sora",
+          "path": "/assets/heroes/sora.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "sun",
+          "name": "Sun",
+          "path": "/assets/heroes/sun.png",
+          "role": "fighter"
+        },
+        {
+          "id": "suyou",
+          "name": "Suyou",
+          "path": "/assets/heroes/suyou.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "terizla",
+          "name": "Terizla",
+          "path": "/assets/heroes/terizla.png",
+          "role": "tank, fighter"
+        },
+        {
+          "id": "thamuz",
+          "name": "Thamuz",
+          "path": "/assets/heroes/thamuz.png",
+          "role": "fighter"
+        },
+        {
+          "id": "tigreal",
+          "name": "Tigreal",
+          "path": "/assets/heroes/tigreal.png",
+          "role": "tank"
+        },
+        {
+          "id": "uranus",
+          "name": "Uranus",
+          "path": "/assets/heroes/uranus.png",
+          "role": "tank"
+        },
+        {
+          "id": "vale",
+          "name": "Vale",
+          "path": "/assets/heroes/vale.png",
+          "role": "mage"
+        },
+        {
+          "id": "valentina",
+          "name": "Valentina",
+          "path": "/assets/heroes/valentina.png",
+          "role": "mage"
+        },
+        {
+          "id": "valir",
+          "name": "Valir",
+          "path": "/assets/heroes/valir.png",
+          "role": "mage"
+        },
+        {
+          "id": "vexana",
+          "name": "Vexana",
+          "path": "/assets/heroes/vexana.png",
+          "role": "mage"
+        },
+        {
+          "id": "wanwan",
+          "name": "Wanwan",
+          "path": "/assets/heroes/wanwan.png",
+          "role": "marksman"
+        },
+        {
+          "id": "x_borg",
+          "name": "X.Borg",
+          "path": "/assets/heroes/xborg.png",
+          "role": "fighter"
+        },
+        {
+          "id": "xavier",
+          "name": "Xavier",
+          "path": "/assets/heroes/xavier.png",
+          "role": "mage"
+        },
+        {
+          "id": "yi_sun_shin",
+          "name": "Yi Sun-shin",
+          "path": "/assets/heroes/yi_sun-shin.png",
+          "role": "assassin, marksman"
+        },
+        {
+          "id": "yin",
+          "name": "Yin",
+          "path": "/assets/heroes/yin.png",
+          "role": "fighter, assassin"
+        },
+        {
+          "id": "yu_zhong",
+          "name": "Yu Zhong",
+          "path": "/assets/heroes/yu_zhong.png",
+          "role": "fighter"
+        },
+        {
+          "id": "yve",
+          "name": "Yve",
+          "path": "/assets/heroes/yve.png",
+          "role": "mage"
+        },
+        {
+          "id": "zetian",
+          "name": "Zetian",
+          "path": "/assets/heroes/zetian.png",
+          "role": "mage"
+        },
+        {
+          "id": "zhask",
+          "name": "Zhask",
+          "path": "/assets/heroes/zhask.png",
+          "role": "mage"
+        },
+        {
+          "id": "zhuxin",
+          "name": "Zhuxin",
+          "path": "/assets/heroes/zhuxin.png",
+          "role": "mage"
+        },
+        {
+          "id": "zilong",
+          "name": "Zilong",
+          "path": "/assets/heroes/zilong.png",
+          "role": "fighter, assassin"
+        }
+      ]
+    },
+    "items": {
+      "label": "Item",
+      "items": [
+        {
+          "id": "allow_throw",
+          "name": "Allow Throw",
+          "path": "/assets/items/allow_throw.png",
+          "price": 0
+        },
+        {
+          "id": "antique_cuirass",
+          "name": "Antique Cuirass",
+          "path": "/assets/items/antique_cuirass.png",
+          "price": 2170
+        },
+        {
+          "id": "arcane_boots",
+          "name": "Arcane Boots",
+          "path": "/assets/items/arcane_boots.png",
+          "price": 690
+        },
+        {
+          "id": "ares_belt",
+          "name": "Ares Belt",
+          "path": "/assets/items/ares_belt.png",
+          "price": 900
+        },
+        {
+          "id": "athena_s_shield",
+          "name": "Athena's Shield",
+          "path": "/assets/items/athenas_shield.png",
+          "price": 2150
+        },
+        {
+          "id": "azure_blade",
+          "name": "Azure Blade",
+          "path": "/assets/items/azure_blade.png",
+          "price": 600
+        },
+        {
+          "id": "berserker_s_fury",
+          "name": "Berserker's Fury",
+          "path": "/assets/items/berserkers_fury.png",
+          "price": 2390
+        },
+        {
+          "id": "black_ice_shield",
+          "name": "Black Ice Shield",
+          "path": "/assets/items/black_ice_shield.png",
+          "price": 880
+        },
+        {
+          "id": "blade_armor",
+          "name": "Blade Armor",
+          "path": "/assets/items/blade_armor.png",
+          "price": 1910
+        },
+        {
+          "id": "blade_of_despair",
+          "name": "Blade of Despair",
+          "path": "/assets/items/blade_of_despair.png",
+          "price": 3010
+        },
+        {
+          "id": "blade_of_the_heptaseas",
+          "name": "Blade of the Heptaseas",
+          "path": "/assets/items/blade_of_the_heptaseas.png",
+          "price": 1950
+        },
+        {
+          "id": "blood_wings",
+          "name": "Blood Wings",
+          "path": "/assets/items/blood_wings.png",
+          "price": 2100
+        },
+        {
+          "id": "bloody_retribution",
+          "name": "Bloody Retribution",
+          "path": "/assets/items/bloody_retribution.png",
+          "price": 0
+        },
+        {
+          "id": "book_of_sages",
+          "name": "Book of Sages",
+          "path": "/assets/items/book_of_sages.png",
+          "price": 450
+        },
+        {
+          "id": "boots",
+          "name": "Boots",
+          "path": "/assets/items/boots.png",
+          "price": 250
+        },
+        {
+          "id": "broken_heart",
+          "name": "Broken Heart",
+          "path": "/assets/items/broken_heart.png",
+          "price": 0
+        },
+        {
+          "id": "brute_force_breastplate",
+          "name": "Brute Force Breastplate",
+          "path": "/assets/items/brute_force_breastplate.png",
+          "price": 1870
+        },
+        {
+          "id": "chastise_pauldron",
+          "name": "Chastise Pauldron",
+          "path": "/assets/items/chastise_pauldron.png",
+          "price": 2100
+        },
+        {
+          "id": "clock_of_destiny",
+          "name": "Clock of Destiny",
+          "path": "/assets/items/clock_of_destiny.png",
+          "price": 2030
+        },
+        {
+          "id": "conceal",
+          "name": "Conceal",
+          "path": "/assets/items/conceal.png",
+          "price": 0
+        },
+        {
+          "id": "concentrated_energy",
+          "name": "Concentrated Energy",
+          "path": "/assets/items/concentrated_energy.png",
+          "price": 2020
+        },
+        {
+          "id": "corrosion_scythe",
+          "name": "Corrosion Scythe",
+          "path": "/assets/items/corrosion_scythe.png",
+          "price": 2050
+        },
+        {
+          "id": "cursed_helmet",
+          "name": "Cursed Helmet",
+          "path": "/assets/items/cursed_helmet.png",
+          "price": 1910
+        },
+        {
+          "id": "dagger",
+          "name": "Dagger",
+          "path": "/assets/items/dagger.png",
+          "price": 250
+        },
+        {
+          "id": "demon_boots",
+          "name": "Demon Boots",
+          "path": "/assets/items/demon_boots.png",
+          "price": 720
+        },
+        {
+          "id": "demon_hunter_sword",
+          "name": "Demon Hunter Sword",
+          "path": "/assets/items/demon_hunter_sword.png",
+          "price": 2180
+        },
+        {
+          "id": "dire_hit",
+          "name": "Dire Hit",
+          "path": "/assets/items/dire_hit.png",
+          "price": 0
+        },
+        {
+          "id": "divine_glaive",
+          "name": "Divine Glaive",
+          "path": "/assets/items/divine_glaive.png",
+          "price": 1970
+        },
+        {
+          "id": "dominance_ice",
+          "name": "Dominance Ice",
+          "path": "/assets/items/dominance_ice.png",
+          "price": 2010
+        },
+        {
+          "id": "dreadnaught_armor",
+          "name": "Dreadnaught Armor",
+          "path": "/assets/items/dreadnaught_armor.png",
+          "price": 730
+        },
+        {
+          "id": "elegant_gem",
+          "name": "Elegant Gem",
+          "path": "/assets/items/elegant_gem.png",
+          "price": 700
+        },
+        {
+          "id": "enchanted_talisman",
+          "name": "Enchanted Talisman",
+          "path": "/assets/items/enchanted_talisman.png",
+          "price": 1870
+        },
+        {
+          "id": "encourage",
+          "name": "Encourage",
+          "path": "/assets/items/encourage.png",
+          "price": 0
+        },
+        {
+          "id": "endless_battle",
+          "name": "Endless Battle",
+          "path": "/assets/items/endless_battle.png",
+          "price": 2330
+        },
+        {
+          "id": "exotic_veil",
+          "name": "Exotic Veil",
+          "path": "/assets/items/exotic_veil.png",
+          "price": 600
+        },
+        {
+          "id": "expert_gloves",
+          "name": "Expert Gloves",
+          "path": "/assets/items/expert_gloves.png",
+          "price": 500
+        },
+        {
+          "id": "expert_gloves",
+          "name": "Expert Gloves",
+          "path": "/assets/items/expert_gloves.png",
+          "price": 500
+        },
+        {
+          "id": "favor",
+          "name": "Favor",
+          "path": "/assets/items/favor.png",
+          "price": 0
+        },
+        {
+          "id": "feather_of_heaven",
+          "name": "Feather of Heaven",
+          "path": "/assets/items/feather_of_heaven.png",
+          "price": 2030
+        },
+        {
+          "id": "flame_retribution",
+          "name": "Flame Retribution",
+          "path": "/assets/items/flame_retribution.png",
+          "price": 0
+        },
+        {
+          "id": "flask_of_the_oasis",
+          "name": "Flask of the Oasis",
+          "path": "/assets/items/flask_of_the_oasis.png",
+          "price": 1850
+        },
+        {
+          "id": "fleeting_time",
+          "name": "Fleeting Time",
+          "path": "/assets/items/fleeting_time.png",
+          "price": 2050
+        },
+        {
+          "id": "fleeting_time",
+          "name": "Fleeting Time",
+          "path": "/assets/items/fleeting_time.png",
+          "price": 2050
+        },
+        {
+          "id": "fleeting_time",
+          "name": "Fleeting Time",
+          "path": "/assets/items/fleeting_time.png",
+          "price": 2050
+        },
+        {
+          "id": "flower_of_hope",
+          "name": "Flower of Hope",
+          "path": "/assets/items/flower_of_hope.png",
+          "price": 0
+        },
+        {
+          "id": "fury_hammer",
+          "name": "Fury Hammer",
+          "path": "/assets/items/fury_hammer.png",
+          "price": 830
+        },
+        {
+          "id": "genius_wand",
+          "name": "Genius Wand",
+          "path": "/assets/items/genius_wand.png",
+          "price": 2000
+        },
+        {
+          "id": "glowing_wand",
+          "name": "Glowing Wand",
+          "path": "/assets/items/glowing_wand.png",
+          "price": 2150
+        },
+        {
+          "id": "golden_staff",
+          "name": "Golden Staff",
+          "path": "/assets/items/golden_staff.png",
+          "price": 2000
+        },
+        {
+          "id": "great_dragon_spear",
+          "name": "Great Dragon Spear",
+          "path": "/assets/items/great_dragon_spear.png",
+          "price": 2140
+        },
+        {
+          "id": "guardian_helmet",
+          "name": "Guardian Helmet",
+          "path": "/assets/items/guardian_helmet.png",
+          "price": 2200
+        },
+        {
+          "id": "haas_s_claws",
+          "name": "Haas's Claws",
+          "path": "/assets/items/haass_claws.png",
+          "price": 2020
+        },
+        {
+          "id": "healing_necklace",
+          "name": "Healing Necklace",
+          "path": "/assets/items/healing_necklace.png",
+          "price": 140
+        },
+        {
+          "id": "hero_s_ring",
+          "name": "Hero's Ring",
+          "path": "/assets/items/heros_ring.png",
+          "price": 450
+        },
+        {
+          "id": "holy_crystal",
+          "name": "Holy Crystal",
+          "path": "/assets/items/holy_crystal.png",
+          "price": 3000
+        },
+        {
+          "id": "hunter_strike",
+          "name": "Hunter Strike",
+          "path": "/assets/items/hunter_strike.png",
+          "price": 2010
+        },
+        {
+          "id": "ice_queen_wand",
+          "name": "Ice Queen Wand",
+          "path": "/assets/items/ice_queen_wand.png",
+          "price": 2040
+        },
+        {
+          "id": "ice_retribution",
+          "name": "Ice Retribution",
+          "path": "/assets/items/ice_retribution.png",
+          "price": 0
+        },
+        {
+          "id": "immortality",
+          "name": "Immortality",
+          "path": "/assets/items/immortality.png",
+          "price": 2120
+        },
+        {
+          "id": "iron_hunting_bow",
+          "name": "Iron Hunting Bow",
+          "path": "/assets/items/iron_hunting_bow.png",
+          "price": 450
+        },
+        {
+          "id": "javelin",
+          "name": "Javelin",
+          "path": "/assets/items/javelin.png",
+          "price": 320
+        },
+        {
+          "id": "knife",
+          "name": "Knife",
+          "path": "/assets/items/knife.png",
+          "price": 280
+        },
+        {
+          "id": "lantern_of_hope",
+          "name": "Lantern of Hope",
+          "path": "/assets/items/lantern_of_hope.png",
+          "price": 0
+        },
+        {
+          "id": "leather_jerkin",
+          "name": "Leather Jerkin",
+          "path": "/assets/items/leather_jerkin.png",
+          "price": 220
+        },
+        {
+          "id": "legion_sword",
+          "name": "Legion Sword",
+          "path": "/assets/items/legion_sword.png",
+          "price": 910
+        },
+        {
+          "id": "lightning_truncheon",
+          "name": "Lightning Truncheon",
+          "path": "/assets/items/lightning_truncheon.png",
+          "price": 2250
+        },
+        {
+          "id": "magic_blade",
+          "name": "Magic Blade",
+          "path": "/assets/items/magic_blade.png",
+          "price": 1050
+        },
+        {
+          "id": "magic_boots",
+          "name": "Magic Boots",
+          "path": "/assets/items/magic_boots.png",
+          "price": 710
+        },
+        {
+          "id": "magic_necklace",
+          "name": "Magic Necklace",
+          "path": "/assets/items/magic_necklace.png",
+          "price": 120
+        },
+        {
+          "id": "magic_potion",
+          "name": "Magic Potion",
+          "path": "/assets/items/magic_potion.png",
+          "price": 1500
+        },
+        {
+          "id": "magic_resist_cloak",
+          "name": "Magic Resist Cloak",
+          "path": "/assets/items/magic_resist_cloak.png",
+          "price": 220
+        },
+        {
+          "id": "magic_wand",
+          "name": "Magic Wand",
+          "path": "/assets/items/magic_wand.png",
+          "price": 820
+        },
+        {
+          "id": "malefic_gun",
+          "name": "Malefic Gun",
+          "path": "/assets/items/malefic_gun.png",
+          "price": 2120
+        },
+        {
+          "id": "malefic_roar",
+          "name": "Malefic Roar",
+          "path": "/assets/items/malefic_roar.png",
+          "price": 2060
+        },
+        {
+          "id": "molten_essence",
+          "name": "Molten Essence",
+          "path": "/assets/items/molten_essence.png",
+          "price": 800
+        },
+        {
+          "id": "mystery_codex",
+          "name": "Mystery Codex",
+          "path": "/assets/items/mystery_codex.png",
+          "price": 300
+        },
+        {
+          "id": "mystic_container",
+          "name": "Mystic Container",
+          "path": "/assets/items/mystic_container.png",
+          "price": 500
+        },
+        {
+          "id": "ogre_tomahawk",
+          "name": "Ogre Tomahawk",
+          "path": "/assets/items/ogre_tomahawk.png",
+          "price": 650
+        },
+        {
+          "id": "oracle",
+          "name": "Oracle",
+          "path": "/assets/items/oracle.png",
+          "price": 1860
+        },
+        {
+          "id": "power_crystal",
+          "name": "Power Crystal",
+          "path": "/assets/items/power_crystal.png",
+          "price": 220
+        },
+        {
+          "id": "power_potion",
+          "name": "Power Potion",
+          "path": "/assets/items/power_potion.png",
+          "price": 1500
+        },
+        {
+          "id": "queen_s_wings",
+          "name": "Queen's Wings",
+          "path": "/assets/items/queens_wings.png",
+          "price": 2250
+        },
+        {
+          "id": "radiant_armor",
+          "name": "Radiant Armor",
+          "path": "/assets/items/radiant_armor.png",
+          "price": 1880
+        },
+        {
+          "id": "rapid_boots",
+          "name": "Rapid Boots",
+          "path": "/assets/items/rapid_boots.png",
+          "price": 750
+        },
+        {
+          "id": "regular_spear",
+          "name": "Regular Spear",
+          "path": "/assets/items/regular_spear.png",
+          "price": 600
+        },
+        {
+          "id": "rock_potion",
+          "name": "Rock Potion",
+          "path": "/assets/items/rock_potion.png",
+          "price": 1500
+        },
+        {
+          "id": "rogue_meteor",
+          "name": "Rogue Meteor",
+          "path": "/assets/items/rogue_meteor.png",
+          "price": 900
+        },
+        {
+          "id": "rose_gold_meteor",
+          "name": "Rose Gold Meteor",
+          "path": "/assets/items/rose_gold_meteor.png",
+          "price": 1820
+        },
+        {
+          "id": "sea_halberd",
+          "name": "Sea Halberd",
+          "path": "/assets/items/sea_halberd.png",
+          "price": 2050
+        },
+        {
+          "id": "silence_robe",
+          "name": "Silence Robe",
+          "path": "/assets/items/silence_robe.png",
+          "price": 1020
+        },
+        {
+          "id": "sky_piercer",
+          "name": "Sky Piercer",
+          "path": "/assets/items/sky_piercer.png",
+          "price": 1500
+        },
+        {
+          "id": "sky_piercer",
+          "name": "Sky Piercer",
+          "path": "/assets/items/sky_piercer.png",
+          "price": 1500
+        },
+        {
+          "id": "starlium_scythe",
+          "name": "Starlium Scythe",
+          "path": "/assets/items/starlium_scythe.png",
+          "price": 2220
+        },
+        {
+          "id": "steel_legplates",
+          "name": "Steel Legplates",
+          "path": "/assets/items/steel_legplates.png",
+          "price": 630
+        },
+        {
+          "id": "swift_boots",
+          "name": "Swift Boots",
+          "path": "/assets/items/swift_boots.png",
+          "price": 710
+        },
+        {
+          "id": "swift_crossbow",
+          "name": "Swift Crossbow",
+          "path": "/assets/items/swift_crossbow.png",
+          "price": 1000
+        },
+        {
+          "id": "throw_forbidden",
+          "name": "Throw Forbidden",
+          "path": "/assets/items/throw_forbidden.png",
+          "price": 0
+        },
+        {
+          "id": "thunder_belt",
+          "name": "Thunder Belt",
+          "path": "/assets/items/thunder_belt.png",
+          "price": 1820
+        },
+        {
+          "id": "tome_of_evil",
+          "name": "Tome of Evil",
+          "path": "/assets/items/tome_of_evil.png",
+          "price": 950
+        },
+        {
+          "id": "tough_boots",
+          "name": "Tough Boots",
+          "path": "/assets/items/tough_boots.png",
+          "price": 700
+        },
+        {
+          "id": "vampire_mallet",
+          "name": "Vampire Mallet",
+          "path": "/assets/items/vampire_mallet.png",
+          "price": 400
+        },
+        {
+          "id": "vitality_crystal",
+          "name": "Vitality Crystal",
+          "path": "/assets/items/vitality_crystal.png",
+          "price": 300
+        },
+        {
+          "id": "war_axe",
+          "name": "War Axe",
+          "path": "/assets/items/war_axe.png",
+          "price": 2100
+        },
+        {
+          "id": "warrior_boots",
+          "name": "Warrior Boots",
+          "path": "/assets/items/warrior_boots.png",
+          "price": 720
+        },
+        {
+          "id": "wind_of_nature",
+          "name": "Wind of Nature",
+          "path": "/assets/items/wind_of_nature.png",
+          "price": 1910
+        },
+        {
+          "id": "windtalker",
+          "name": "Windtalker",
+          "path": "/assets/items/windtalker.png",
+          "price": 1880
+        },
+        {
+          "id": "winter_crown",
+          "name": "Winter Crown",
+          "path": "/assets/items/winter_crown.png",
+          "price": 1910
+        },
+        {
+          "id": "winter_crown",
+          "name": "Winter Crown",
+          "path": "/assets/items/winter_crown.png",
+          "price": 1910
+        },
+        {
+          "id": "wishing_lantern",
+          "name": "Wishing Lantern",
+          "path": "/assets/items/wishing_lantern.png",
+          "price": 2250
+        }
+      ]
+    },
+    "teams": {
+      "label": "Tim",
+      "items": [
+        {
+          "id": "blue-phoenix",
+          "name": "Blue Phoenix",
+          "path": "/assets/teams/blue-phoenix.svg"
+        },
+        {
+          "id": "red-viper",
+          "name": "Red Viper",
+          "path": "/assets/teams/red-viper.svg"
+        }
+      ]
+    },
+    "overlays": {
+      "label": "Template Overlay",
+      "items": [
+        {
+          "id": "gameplay-template",
+          "name": "Gameplay Template",
+          "path": "/assets/overlays/gameplay-template.svg"
+        }
+      ]
+    }
+  },
+  "source": {
+    "name": "database-mlbb.Mobile-Legends-Bang-Bang",
+    "url": "https://github.com/Ceplin03/database-mlbb.Mobile-Legends-Bang-Bang"
+  }
+}

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beranda - MLBB Broadcast Engine</title>
+    <link rel="stylesheet" href="/frontend/home/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">MLBB Broadcast Engine</p>
+          <h1>Buat paket overlay untuk streaming</h1>
+          <p class="lede">
+            Satu profil untuk satu pertandingan. Tiap profil punya URL sendiri, jadi profil
+            milik orang lain tidak akan menyentuh profil Anda.
+          </p>
+        </div>
+        <button id="theme-toggle" class="ghost" type="button">Mode terang</button>
+      </header>
+
+      <div id="notice" class="notice" hidden></div>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>1. Pilih paket overlay</h2>
+        <p class="hint">Paket menentukan layout, style, dan ROI bawaan profil baru.</p>
+        <div id="template-grid" class="template-grid"></div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>2. Detail profil</h2>
+        <div class="form-grid">
+          <label>
+            <span>Nama profil</span>
+            <input id="profile-name" type="text" maxlength="80" placeholder="misal: Grand FinalLieberman" />
+          </label>
+          <label>
+            <span>Tim Biru</span>
+            <select id="blue-team"></select>
+          </label>
+          <label>
+            <span>Tim Merah</span>
+            <select id="red-team"></select>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="create-profile" class="primary" type="button">Buat profil</button>
+          <span class="hint">URL profil dibuat acak dan tidak bisa ditebak.</span>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>3. Library aset</h2>
+        <p class="hint">
+          Aset bawaan paket. Gambar disalin ke <code>assets/</code> lalu dibaca dari
+          <code>assets/registry.json</code>.
+        </p>
+        <div id="registry-status" class="hint">Memuat registry...</div>
+        <div id="registry-body" class="registry" hidden></div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>4. Profil saya</h2>
+        <p class="hint">
+          Disimpan di browser ini. ownerKey hanya ada di perangkat ini, jadi OV browser
+          yang berbeda tidak otomatis bisa mengedit.
+        </p>
+        <div id="profile-list" class="profile-list"></div>
+
+        <details class="danger">
+          <summary>Alat ownerKey</summary>
+          <div class="danger-body">
+            <p class="hint">
+              Kalau Anda kehilangan ownerKey, masukkan ownerKey lama untuk memverifikasi ulang.
+              Hash ownerKey tidak pernah dikirim balik ke server dalam bentuk apa pun.
+            </p>
+            <div class="form-grid">
+              <label>
+                <span>Slug profil</span>
+                <input id="adopt-slug" type="text" placeholder="slug profil" />
+              </label>
+              <label>
+                <span>ownerKey</span>
+                <input id="adopt-key" type="text" placeholder="ownerKey profil" />
+              </label>
+            </div>
+            <div class="actions">
+              <button id="adopt-profile" type="button">Simpan ownerKey di perangkat ini</button>
+              <button id="open-by-slug" class="ghost" type="button">Buka profil tanpa key</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>5. Ekspor / Impor</h2>
+        <p class="hint">
+          Export menghasilkan bundel JSON <strong>tanpa ownerKey</strong>. Import selalu
+          membuat profil baru dengan slug dan ownerKey baru.
+        </p>
+        <div class="actions">
+          <label class="file-button">
+            Import bundel profil (.json)
+            <input id="import-bundle" type="file" accept="application/json,.json" hidden />
+          </label>
+          <span id="import-status" class="hint"></span>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>5. Galeri paket</h2>
+        <p class="hint">
+          Publish profil Anda ke galeri publik supaya orang lain bisa melihat dan menyalin
+         Gayanya. ownerKey dan isi state tidak pernah ikut tersimpan, hanya nama paket dan
+          nama tim. Tekan <strong>Publish</strong> di kartu profil untuk masuk atau keluar
+          galeri.
+        </p>
+        <div id="gallery-status" class="hint">Memuat galeri...</div>
+        <div id="gallery-body" class="gallery-grid" hidden></div>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
+      <section class="panel">
+        <h2>6. Masukan</h2>
+        <p class="hint">Ada bug atau mau minta fitur? Tulis di sini, tidak perlu akun.</p>
+        <div class="form-grid">
+          <label>
+            <span>Jenis</span>
+            <select id="feedback-kind">
+              <option value="bug">Bug</option>
+              <option value="fitur">Permintaan fitur</option>
+              <option value="lain">Lainnya</option>
+            </select>
+          </label>
+          <label>
+            <span>Kontak (opsional)</span>
+            <input id="feedback-contact" type="text" maxlength="120" placeholder="email atau username" />
+          </label>
+        </div>
+        <label>
+          <span>Pesan</span>
+          <textarea id="feedback-message" rows="4" maxlength="2000" placeholder="Ceritakan detailnya"></textarea>
+        </label>
+        <label class="hp" aria-hidden="true">Jangan diisi<input id="feedback-website" type="text" tabindex="-1" autocomplete="off" /></label>
+        <div class="actions">
+          <button id="send-feedback" type="button">Kirim</button>
+          <span id="feedback-status" class="hint"></span>
+        </div>
+      </section>
+
+      <footer class="footnote">
+        <p>
+          Overlay OBS: <code>/p/&lt;slug&gt;/overlay/gameplay/</code> &middot;
+          Control: <code>/p/&lt;slug&gt;/control/</code> &middot;
+          OCR: <code>/p/&lt;slug&gt;/debug/</code>
+        </p>
+      </footer>
+    </main>
+
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/home/app.js"></script>
+  </body>
+</html>

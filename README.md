@@ -192,3 +192,6 @@ nav bar otomatis memakai path lokal. Cocok untuk development tanpa memakai kuota
 9 fase. Fase 0–8 selesai dan sudah di-deploy (versi produksi `3a1253b9`). Kalau aset hero/item
 berubah, `npm run build:cloudflare` **wajib** dijalankan ulang sebelum deploy karena registry
 ikut di-build.
+
+Brief requirement asal (dokumen rencana 9 fase) tidak disimpan di repo ini karena berisi
+catatan kerja internal; repo hanya memuat kode, `README.md`, dan `UPDATE.md`.

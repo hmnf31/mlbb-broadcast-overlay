@@ -137,6 +137,50 @@
       .player-row input[type='number'] { max-width: 60px; }
       .player-items { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: wrap; }
       .player-items img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid rgba(255,255,255,.14); }
+      .player-block { display: grid; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      .player-block:last-child { border-bottom: 0; padding-bottom: 0; }
+      .player-row img.is-empty { background: rgba(255,255,255,.04); border-style: dashed; }
+      .player-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px 10px; padding-left: 40px; }
+      .result-subhead { margin: 16px 0 6px; font-size: .78rem; color: #9fb3c8; text-transform: uppercase; letter-spacing: .1em; }
+      .result-objectives { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 14px; margin-bottom: 10px; }
+      .result-objective { display: grid; grid-template-columns: 1fr 66px 66px; gap: 6px; align-items: center; font-size: .78rem; color: #9fb3c8; }
+      .result-objective input { min-width: 0; }
+      .result-objective-legend { grid-column: 1 / -1; margin: 0; }
+      .player-field { display: flex; flex-direction: column; gap: 3px; font-size: .72rem; color: #9fb3c8; }
+      .player-field input { min-width: 0; }
+      .asset-picker-close { justify-self: start; padding: 6px 12px; }
+      .draft-slots-ban { border-top: 1px solid rgba(255,120,120,.35); padding-top: 6px; }
+      .draft-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; margin-bottom: 12px; }
+      .draft-controls label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; }
+      .draft-advantage { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 6px 0 14px; }
+      .draft-advantage-side { display: flex; align-items: baseline; gap: 8px; font-size: .8rem; letter-spacing: .1em; }
+      .draft-advantage-team { color: #9fb3c8; }
+      .draft-advantage-score { font-family: Consolas, monospace; font-size: 1.2rem; font-weight: 700; }
+      .draft-advantage-track { height: 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); overflow: hidden; position: relative; }
+      .draft-advantage-fill { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: linear-gradient(90deg, rgba(0,229,255,.85), rgba(0,229,255,.35)); transition: width .3s ease, transform .3s ease; }
+      .draft-advantage-fill[data-leader='red'] { background: linear-gradient(90deg, rgba(255,82,95,.35), rgba(255,82,95,.85)); transform: translateX(-100%); }
+      .draft-advantage-fill[data-leader='tie'] { background: rgba(244,206,0,.55); }
+      .draft-columns { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 14px; }
+      .draft-side h3 { margin: 0 0 8px; font-size: .95rem; }
+      .draft-side h4 { margin: 10px 0 6px; font-size: .78rem; color: #9fb3c8; text-transform: uppercase; letter-spacing: .1em; }
+      .draft-slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+      .draft-slots select { width: 100%; min-width: 0; padding: 6px 4px; font-size: .72rem; }
+      .draft-recommend { margin-top: 14px; }
+      .draft-recommend h3 { margin: 0 0 8px; font-size: .9rem; }
+      .draft-recommend-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 0; padding-left: 20px; font-size: .78rem; }
+      .draft-recommend-list li { display: flex; gap: 6px; align-items: baseline; }
+      .draft-recommend-why { color: #9fb3c8; }
+      .draft-recommend-score { font-family: Consolas, monospace; color: #ffd76a; }
+      .preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+      .preview-card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.03); }
+      .preview-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .preview-card-title { font-size: .9rem; font-weight: 600; }
+      .preview-card-tag { font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: #9fb3c8; }
+      .preview-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #05070b; border: 1px solid rgba(255,255,255,.1); }
+      .preview-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+      .preview-card-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .74rem; color: #6f8093; text-align: center; padding: 8px; }
+      .preview-card-links { display: flex; gap: 8px; flex-wrap: wrap; }
+      .preview-card-links a { color: #9fd0ff; font-size: .76rem; }
       .asset-picker { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px; padding: 18px; background: rgba(4, 8, 12, .92); }
       .asset-picker input[type='search'] { padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color: #eef4fb; }
       .asset-picker-grid { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; align-content: start; }
@@ -279,6 +323,13 @@
             <a class="secondary-link" id="result-obs-link" href="#" target="_blank" rel="noopener">Buka browser source result</a>
           </div>
           <div class="result-grid">
+            <label><span>Tampilan</span>
+              <select id="result-mode-input">
+                <option value="mvp">Kartu MVP</option>
+                <option value="scoreboard">Scoreboard 10 pemain</option>
+              </select>
+            </label>
+            <label><span>Label panggung</span><input type="text" id="result-stage-label-input" maxlength="48" placeholder="mis. GAME 2 · BO3" /></label>
             <label><span>Headline</span><input type="text" id="result-headline-input" maxlength="48" /></label>
             <label><span>Subline</span><input type="text" id="result-subline-input" maxlength="120" /></label>
             <label><span>Game</span><input type="number" id="result-game-input" min="1" max="99" /></label>
@@ -286,7 +337,34 @@
             <label><span>Durasi (detik)</span><input type="number" id="result-duration-input" min="0" max="86400" /></label>
             <label><span>Damage diberikan</span><input type="number" id="result-dealt-input" min="0" /></label>
             <label><span>Damage diterima</span><input type="number" id="result-taken-input" min="0" /></label>
-            <label><span>MVP</span><input type="text" id="result-mvp-input" maxlength="64" /></label>
+            <label><span>MVP</span><input type="text" id="result-mvp-input" maxlength="64" list="result-mvp-options" /></label>
+          </div>
+          <datalist id="result-mvp-options"></datalist>
+          <p class="preview-hint">MVP: pilih dari daftar atau ketik nama manual. Kartu MVP memakai data baris PTS/Gold/DMG di section Player Cards.</p>
+
+          <h3 class="result-subhead">Skor seri manual</h3>
+          <div class="result-grid">
+            <label><span>Skor seri Blue</span><input type="number" id="result-series-blue-input" min="0" max="99" /></label>
+            <label><span>Skor seri Red</span><input type="number" id="result-series-red-input" min="0" max="99" /></label>
+            <label><span>Catatan caster</span><input type="text" id="result-caster-note-input" maxlength="160" placeholder="mis. Gimana strategi win streak?" /></label>
+          </div>
+
+          <h3 class="result-subhead">Objective akhir layar hasil</h3>
+          <p class="preview-hint">Nomor ini terpisah dari objective gameplay di section atas, karena layar hasil menampilkan rekap game yang sedang ditutup.</p>
+          <div class="result-objectives">
+            <div class="result-objective"><span>Turtle</span>
+              <input type="number" id="result-turtle-blue-input" min="0" max="99" aria-label="Turtle Blue" title="Turtle Blue" />
+              <input type="number" id="result-turtle-red-input" min="0" max="99" aria-label="Turtle Red" title="Turtle Red" />
+            </div>
+            <div class="result-objective"><span>Lord</span>
+              <input type="number" id="result-lord-blue-input" min="0" max="99" aria-label="Lord Blue" title="Lord Blue" />
+              <input type="number" id="result-lord-red-input" min="0" max="99" aria-label="Lord Red" title="Lord Red" />
+            </div>
+            <div class="result-objective"><span>Turret</span>
+              <input type="number" id="result-turret-blue-input" min="0" max="99" aria-label="Turret Blue" title="Turret Blue" />
+              <input type="number" id="result-turret-red-input" min="0" max="99" aria-label="Turret Red" title="Turret Red" />
+            </div>
+            <p class="preview-hint result-objective-legend">Urutan kolom: Blue lalu Red.</p>
           </div>
           <p class="preview-hint" id="result-series-note">Skor seri mengikuti Seri BO2 di atas selama indikatornya aktif.</p>
         </section>
@@ -308,11 +386,76 @@
           </div>
         </section>
 
+        <section class="bo2-editor" id="draft-editor">
+          <div class="bo2-toolbar">
+            <h2>Layar Draft (Fase 1)</h2>
+            <label><input type="checkbox" id="draft-visible" /> Tampilkan overlay draft</label>
+            <a class="secondary-link" id="draft-obs-link" href="#" target="_blank" rel="noopener">Buka browser source draft</a>
+          </div>
+
+          <div class="draft-controls">
+            <label><span>Round</span><input type="number" id="draft-round-input" min="1" max="15" /></label>
+            <label><span>Sisi aktif</span>
+              <select id="draft-active-side">
+                <option value="blue">Blue</option>
+                <option value="red">Red</option>
+              </select>
+            </label>
+            <button type="button" class="secondary" id="draft-reset">Reset draft</button>
+            <span class="preview-hint" id="draft-source-note">Matriks dimuat…</span>
+          </div>
+
+          <!-- Advantage dihitung di browser dari matriks, sama seperti overlay, jadi angka
+               yang dilihat operator di sini persis dengan yang tayang. -->
+          <div class="draft-advantage">
+            <div class="draft-advantage-side">
+              <span class="draft-advantage-team" id="draft-blue-team">BLUE</span>
+              <span class="draft-advantage-score" id="draft-blue-advantage">--</span>
+            </div>
+            <div class="draft-advantage-track"><div class="draft-advantage-fill" id="draft-advantage-fill"></div></div>
+            <div class="draft-advantage-side">
+              <span class="draft-advantage-score" id="draft-red-advantage">--</span>
+              <span class="draft-advantage-team" id="draft-red-team">RED</span>
+            </div>
+          </div>
+
+          <div class="draft-columns">
+            <div class="draft-side">
+              <h3>Blue</h3>
+              <div class="draft-slots" id="draft-blue-picks"></div>
+              <h4>Ban</h4>
+              <div class="draft-slots draft-slots-ban" id="draft-blue-bans"></div>
+            </div>
+            <div class="draft-side">
+              <h3>Red</h3>
+              <div class="draft-slots" id="draft-red-picks"></div>
+              <h4>Ban</h4>
+              <div class="draft-slots draft-slots-ban" id="draft-red-bans"></div>
+            </div>
+          </div>
+
+          <div class="draft-recommend">
+            <h3>Rekomendasi <span id="draft-recommend-side">BLUE</span></h3>
+            <ol class="draft-recommend-list" id="draft-recommend-list"></ol>
+          </div>
+        </section>
+
         <div class="actions">
           <button type="button" class="primary" id="save-button">Simpan Pengaturan</button>
           <button type="button" class="secondary" id="apply-button">Kirim Update Live</button>
           <button type="button" class="secondary" id="reset-button">Reset Default</button>
         </div>
+
+        <!-- Preview semua fase dalam satu tempat. Tiap fase punya scene OBS sendiri, jadi
+             operator perlu tahu URL-nya tanpa berburu tab; iframe dipakai supaya angka yang
+             terlihat di sini benar-benar angka yang akan tayang, bukan tiruan. -->
+        <section class="bo2-editor" id="preview-panel">
+          <div class="bo2-toolbar">
+            <h2>Preview semua fase</h2>
+            <span class="preview-hint">Browser source yang dipakai tiap scene OBS. Tampil atau tidaknya tiap fase diatur lewat checkbox di atas.</span>
+          </div>
+          <div class="preview-grid" id="preview-grid"></div>
+        </section>
 
         <div class="manual-controls">
           <section class="manual-group" data-manual-group="turtle">
@@ -338,6 +481,7 @@
 
     <script src="/frontend/shared/profile.js"></script>
     <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/shared/draft-analytics.js"></script>
     <script src="/frontend/control/app.js"></script>
   </body>
 </html>

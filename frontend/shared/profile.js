@@ -203,9 +203,18 @@
   }
 
   async function fetchRegistry() {
-    const response = await fetch('/assets/registry.json', { cache: 'no-store' });
-    if (!response.ok) return { ok: false, error: 'Registry aset belum tersedia. Jalankan npm run build:cloudflare.' };
-    return { ok: true, registry: await response.json() };
+    const failure = { ok: false, error: 'Registry aset belum tersedia. Jalankan npm run build:cloudflare.' };
+    // fetch() itself rejects on a network error or when the page is offline. Without this
+    // catch the rejection escapes into the caller's await chain, and because initAuxEditors()
+    // awaits it before building any editor, one unreachable asset file used to leave the
+    // result, roster and draft editors permanently unbuilt.
+    try {
+      const response = await fetch('/assets/registry.json', { cache: 'default' });
+      if (!response.ok) return failure;
+      return { ok: true, registry: await response.json() };
+    } catch {
+      return failure;
+    }
   }
 
   async function pushAux(slug, kind, payload, key) {
@@ -261,7 +270,9 @@
   const PROFILE_PAGES = [
     { page: 'control', label: 'Control', ready: true },
     { page: 'overlay/gameplay', label: 'Overlay Gameplay', tag: 'OBS', ready: true },
+    { page: 'overlay/draft', label: 'Overlay Draft', tag: 'OBS', ready: true },
     { page: 'debug', label: 'Kalibrasi OCR', ready: true },
+    { page: 'verify', label: 'Verifikasi', ready: true },
     { page: 'overlay/result', label: 'Result', tag: 'OBS', ready: true },
   ];
 

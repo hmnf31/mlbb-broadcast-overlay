@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:cloudflare": "node scripts/build-cloudflare.mjs",
+    "build:matrix": "node scripts/build-hero-matrix.mjs",
+    "build:cloudflare": "npm run build:matrix && node scripts/build-cloudflare.mjs",
     "dev:cloudflare": "npm run build:cloudflare && wrangler dev --config cloudflare/wrangler.jsonc",
     "deploy:cloudflare": "npm run build:cloudflare && wrangler deploy --config cloudflare/wrangler.jsonc",
     "d1:schema:local": "wrangler d1 execute mlbb-db --local --config cloudflare/wrangler.jsonc --file=cloudflare/migrations/0001_init.sql",
@@ -12,7 +13,12 @@
     "test:profiles": "node scripts/test-multi-profile.mjs",
     "test:ocr": "node scripts/test-ocr-guard.mjs",
     "test:overlay": "node scripts/test-overlay-render.mjs",
-    "test:d1": "node scripts/test-d1.mjs"
+    "test:d1": "node scripts/test-d1.mjs",
+    "test:draft": "node scripts/test-draft-analytics.mjs && node scripts/test-draft-overlay.mjs",
+    "test:result-modes": "node scripts/test-result-modes.mjs",
+    "test:verify": "node scripts/test-verify-panel.mjs",
+    "test:home": "node scripts/test-home-flow.mjs",
+    "test:all": "npm run test:draft && npm run test:result-modes && npm run test:verify && npm run test:home && npm run test:ocr && npm run test:control && npm run test:overlay"
   },
   "devDependencies": {
     "jsdom": "^30.1.1",

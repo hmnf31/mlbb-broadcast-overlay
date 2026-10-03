@@ -26,18 +26,22 @@ const PROFILE_KEY = 'profile';
 const OCR_KEY = 'ocr';
 const RESULT_KEY = 'result';
 const PLAYERS_KEY = 'players';
+const DRAFT_KEY = 'draft';
 const MIGRATED_KEY = 'migratedFromLegacy';
 
 const PAGE_FILES = {
   'control': '/frontend/control/index.html',
   'overlay/gameplay': '/frontend/overlay/gameplay/index.html',
   'overlay/result': '/frontend/overlay/result/index.html',
+  'overlay/draft': '/frontend/overlay/draft/index.html',
+  'verify': '/frontend/verify/index.html',
   'debug': '/frontend/debug/index.html',
 };
 
 const TEMPLATES = {
   'mlbb-gameplay': { label: 'MLBB Gameplay', description: 'Overlay skor live untuk match MLBB 5v5.' },
   'mlbb-result': { label: 'MLBB Result', description: 'Layar hasil match: skor seri, MVP, damage.' },
+  'mlbb-draft': { label: 'MLBB Draft', description: 'Layar draft pick: ban/pick 5v5 dan advantage counter.' },
 };
 
 const BASE_TEAMS = {
@@ -166,11 +170,100 @@ function defaultResultState() {
     mvp: '',
     headline: 'VICTORY',
     subline: '',
+    mode: 'mvp',
+    mvpRating: 0,
+    objectives: {
+      turtle: { blue: 0, red: 0 },
+      lord: { blue: 0, red: 0 },
+      turret: { blue: 0, red: 0 },
+    },
+    casterNote: '',
+    stageLabel: '',
+  };
+}
+
+// `mode` menentukan layar mana yang dinyalakan: `mvp` (kartu MVP) atau `scoreboard`
+// (10 pemain). Dua-duanya membaca key yang sama, jadi flipping mode tidak perlu state baru.
+function normalizeResultState(value) {
+  const fallback = defaultResultState();
+  if (!isPlainObject(value)) return fallback;
+  const number = (raw, min, max) => {
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(min, Math.min(max, Math.round(numeric)));
+  };
+  const text = (raw, limit) => (typeof raw === 'string' ? raw.slice(0, limit) : '');
+  const sideCount = (raw) => ({
+    blue: number(raw?.blue, 0, 99),
+    red: number(raw?.red, 0, 99),
+  });
+  return {
+    visible: value.visible === true,
+    seriesScore: {
+      blue: number(value.seriesScore?.blue, 0, 99),
+      red: number(value.seriesScore?.red, 0, 99),
+    },
+    gameNumber: number(value.gameNumber, 1, 99),
+    bestOf: number(value.bestOf, 1, 99),
+    durationSec: number(value.durationSec, 0, 86400),
+    damageDealt: number(value.damageDealt, 0, 9_999_999),
+    damageTaken: number(value.damageTaken, 0, 9_999_999),
+    mvp: text(value.mvp, 64),
+    headline: text(value.headline, 48) || fallback.headline,
+    subline: text(value.subline, 120),
+    mode: value.mode === 'scoreboard' ? 'scoreboard' : 'mvp',
+    mvpRating: number(value.mvpRating, 0, 100),
+    objectives: {
+      turtle: sideCount(value.objectives?.turtle),
+      lord: sideCount(value.objectives?.lord),
+      turret: sideCount(value.objectives?.turret),
+    },
+    casterNote: text(value.casterNote, 240),
+    stageLabel: text(value.stageLabel, 80),
   };
 }
 
 function defaultOcrState() {
   return { enabled: false, regions: {}, modes: {}, thresholds: {}, anchor: null };
+}
+
+// Draft pick (Fase 1). Bentuknya sengaja sama dengan yang dinormalisasi frontend di
+// shared/draft-analytics.js supaya snapshot tidak perlu diterjemahkan di dua tempat.
+// Analitiknya sendiri tidak dihitung di sini: matriks hero terlalu besar untuk diserialisasi
+// per-snapshot, jadi overlay memuat `/assets/hero-matrix.json` sekali dan menghitung sendiri.
+const DRAFT_PICK_SLOTS = 5;
+const DRAFT_BAN_SLOTS = 5;
+
+function defaultDraftState() {
+  return {
+    visible: false,
+    round: 1,
+    activeSide: 'blue',
+    blue: { picks: [], bans: [] },
+    red: { picks: [], bans: [] },
+  };
+}
+
+function normalizeDraftState(value) {
+  const fallback = defaultDraftState();
+  if (!isPlainObject(value)) return fallback;
+  const heroIds = (raw) => (Array.isArray(raw) ? raw : [])
+    .filter((id) => typeof id === 'string' && id.length > 0 && id.length <= 64)
+    .slice(0, DRAFT_PICK_SLOTS + DRAFT_BAN_SLOTS);
+  const round = Number(value.round);
+  return {
+    visible: value.visible === true,
+    round: Number.isFinite(round) ? Math.max(1, Math.min(15, Math.round(round))) : 1,
+    activeSide: value.activeSide === 'red' ? 'red' : 'blue',
+    blue: {
+      picks: heroIds(value.blue?.picks).slice(0, DRAFT_PICK_SLOTS),
+      bans: heroIds(value.blue?.bans).slice(0, DRAFT_BAN_SLOTS),
+    },
+    red: {
+      picks: heroIds(value.red?.picks).slice(0, DRAFT_PICK_SLOTS),
+      bans: heroIds(value.red?.bans).slice(0, DRAFT_BAN_SLOTS),
+    },
+  };
 }
 
 // OCR config datang dari browser, jadi field yang tidak dikenal dibuang, bukan disimpan
@@ -240,32 +333,6 @@ function defaultPlayersState() {
   return { blue: [], red: [] };
 }
 
-function normalizeResultState(value) {
-  const fallback = defaultResultState();
-  if (!isPlainObject(value)) return fallback;
-  const number = (raw, min, max) => {
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric)) return 0;
-    return Math.max(min, Math.min(max, Math.round(numeric)));
-  };
-  const text = (raw, limit) => (typeof raw === 'string' ? raw.slice(0, limit) : '');
-  return {
-    visible: value.visible === true,
-    seriesScore: {
-      blue: number(value.seriesScore?.blue, 0, 99),
-      red: number(value.seriesScore?.red, 0, 99),
-    },
-    gameNumber: number(value.gameNumber, 1, 99),
-    bestOf: number(value.bestOf, 1, 99),
-    durationSec: number(value.durationSec, 0, 86400),
-    damageDealt: number(value.damageDealt, 0, 9_999_999),
-    damageTaken: number(value.damageTaken, 0, 9_999_999),
-    mvp: text(value.mvp, 64),
-    headline: text(value.headline, 48) || fallback.headline,
-    subline: text(value.subline, 120),
-  };
-}
-
 const PLAYER_SLOTS = 5;
 
 function normalizePlayersState(value) {
@@ -276,6 +343,14 @@ function normalizePlayersState(value) {
     const numeric = Number(raw);
     return Number.isFinite(numeric) ? Math.max(0, Math.min(max, Math.round(numeric))) : 0;
   };
+  // Radar 0-100 per sumbu. Disimpan terpisah dari KDA/DMG karena screen full scoreboard
+  // menampilkan lima sumbu radar sementara MVP card menampilkan angka yang sama lewat
+  // hitungan turunan.
+  const RADAR_AXES = ['damage', 'survival', 'teamfight', 'push', 'farm'];
+  const normalizeRadar = (raw) => {
+    const source = isPlainObject(raw) ? raw : {};
+    return RADAR_AXES.map((axis) => number(source[axis], 100));
+  };
   const normalizeSide = (side) => {
     const list = Array.isArray(side) ? side : [];
     return Array.from({ length: PLAYER_SLOTS }, (unused, index) => {
@@ -284,10 +359,23 @@ function normalizePlayersState(value) {
         name: text(player.name, 48),
         hero: text(player.hero, 48),
         heroImage: text(player.heroImage, 256),
+        role: text(player.role, 48),
         level: number(player.level, 99),
         kills: number(player.kills, 99),
         deaths: number(player.deaths, 99),
         assists: number(player.assists, 99),
+        // Satu angka desimal, bukan skala 0-100 bulat: kartu MVP menampilkannya sebagai
+        // "14.2" dan membulatkan jadi "14" kalau disimpan bulat.
+        rating: Math.round(number(player.rating, 100) * 10) / 10,
+        gold: number(player.gold, 9_999_999),
+        damage: number(player.damage, 9_999_999),
+        damagePct: number(player.damagePct, 100),
+        turretDamage: number(player.turretDamage, 9_999_999),
+        gpm: number(player.gpm, 9_999),
+        battleSpell: text(player.battleSpell, 48),
+        emblem: text(player.emblem, 96),
+        signaturePlay: text(player.signaturePlay, 160),
+        radar: normalizeRadar(player.radar),
         items: (Array.isArray(player.items) ? player.items : [])
           .slice(0, 6)
           .map((entry) => text(entry, 256))
@@ -443,6 +531,16 @@ function unauthorized(reason) {
   };
   return jsonResponse({ error: messages[reason] || messages.invalid, reason }, 403, noStore());
 }
+
+// Peta kind -> key dipakai dua tempat: route `GET/PUT /<kind>` di ProfileStore dan perintah
+// `reset_aux` lewat socket. Satu sumber supaya menambah aux baru tidak bisa lupa di salah
+// satu dari dua tempat itu.
+const AUX_KINDS = {
+  ocr: { key: OCR_KEY, normalize: normalizeOcrState },
+  result: { key: RESULT_KEY, normalize: normalizeResultState },
+  players: { key: PLAYERS_KEY, normalize: normalizePlayersState },
+  draft: { key: DRAFT_KEY, normalize: normalizeDraftState },
+};
 
 // ---------------------------------------------------------------------------
 // SiteState: global, cross-profile bookkeeping
@@ -701,23 +799,27 @@ export class ProfileStore extends DurableObject {
   }
 
   async loadAuxiliary() {
-    const [ocr, result, players] = await Promise.all([
+    const [ocr, result, players, draft] = await Promise.all([
       this.ctx.storage.get(OCR_KEY),
       this.ctx.storage.get(RESULT_KEY),
       this.ctx.storage.get(PLAYERS_KEY),
+      this.ctx.storage.get(DRAFT_KEY),
     ]);
     return {
       ocr: normalizeOcrState(ocr),
       result: normalizeResultState(result),
       players: normalizePlayersState(players),
+      draft: normalizeDraftState(draft),
     };
   }
 
   buildSnapshot(state, assets, profile, auxiliary = null) {
-    // Snapshot ikut membawa `result` dan `players` supaya overlay tidak perlu fetch
-    // tambahan setiap kali nilainya berubah. `ocr` sengaja tidak disertakan: hanya control
-    // dan halaman OCR yang membutuhkannya, dan isinya bisa berukuran ROI.
-    const extra = auxiliary ? { result: auxiliary.result, players: auxiliary.players } : {};
+    // Snapshot ikut membawa `result`, `players`, dan `draft` supaya overlay tidak perlu
+    // fetch tambahan setiap kali nilainya berubah. `ocr` sengaja tidak disertakan: hanya
+    // control dan halaman OCR yang membutuhkannya, dan isinya bisa berukuran ROI.
+    const extra = auxiliary
+      ? { result: auxiliary.result, players: auxiliary.players, draft: auxiliary.draft }
+      : {};
     return JSON.stringify({
       type: 'snapshot',
       payload: { ...state, assetsVersion: assets.version, profile, ...extra },
@@ -886,13 +988,17 @@ export class ProfileStore extends DurableObject {
       return jsonResponse({ ok: true, applied: Object.keys(readings), rejected }, 200, noStore());
     }
 
-    // `result` dan `players` punya route sendiri karena tidak boleh ikut `PUT /state`: keduanya
-// disiarkan lewat `aux_changed`, bukan lewat snapshot state, supaya tab.result di browser
-// kedua tidak perlu refresh.
-for (const [segment, key, normalize] of [
-      ['result', RESULT_KEY, normalizeResultState],
-      ['players', PLAYERS_KEY, normalizePlayersState],
-    ]) {
+// Hanya aux yang generik yang lewat loop di bawah. `ocr` sengaja TIDAK ikut: `PUT /ocr`
+// punya penggabungan `anchor` sendiri di handler eksplisit di atas, dan memprosesnya lewat
+// `normalizeOcrState` yang sama akan diam-diam membuang anchor itu kalau urutan handler
+// berubah someday. `ocr` tetap ada di AUX_KINDS karena `reset_aux` memakainya.
+const GENERIC_AUX_KINDS = ['result', 'players', 'draft'];
+
+    // `result`, `players`, dan `draft` punya route sendiri karena tidak boleh ikut
+    // `PUT /state`: semuanya disiarkan lewat `aux_changed`, bukan lewat snapshot state,
+    // supaya tab.result, tab.players, dan overlay draft di browser kedua tidak perlu refresh.
+    for (const segment of GENERIC_AUX_KINDS) {
+      const { key, normalize } = AUX_KINDS[segment];
       if (route === segment && request.method === 'GET') {
         return jsonResponse(normalize(await this.ctx.storage.get(key)), 200, noStore());
       }
@@ -905,8 +1011,8 @@ for (const [segment, key, normalize] of [
         const value = normalize(parsed.value);
         await this.ctx.storage.put(key, value);
         this.broadcast(JSON.stringify({ type: 'aux_changed', kind: segment }));
-        // Snapshot ikut membawa result/players, jadi dikirim sekali di sini supaya overlay
-        // tidak perlu fetch tambahan setelah `aux_changed`.
+        // Snapshot ikut membawa aux yang baru diubah, jadi dikirim sekali di sini supaya
+        // overlay tidak perlu fetch tambahan setelah `aux_changed`.
         const { state, assets, profile } = await this.loadState();
         this.broadcast(this.buildSnapshot(state, assets, profile, await this.loadAuxiliary()));
         await this.scheduleHeartbeat();
@@ -1016,15 +1122,14 @@ for (const [segment, key, normalize] of [
       assetsChanged = true;
     } else if (envelope?.type === 'command' && envelope.command === 'reset_aux') {
       const kind = envelope.kind;
-      const key = kind === 'ocr' ? OCR_KEY : kind === 'result' ? RESULT_KEY : kind === 'players' ? PLAYERS_KEY : null;
-      if (!key) {
+      const aux = AUX_KINDS[kind];
+      if (!aux) {
         this.safeSend(socket, JSON.stringify({ type: 'error', message: `Unsupported kind: ${kind}` }));
         return;
       }
-      const fallback = kind === 'ocr'
-          ? defaultOcrState()
-          : kind === 'result' ? defaultResultState() : normalizePlayersState(null);
-      await this.ctx.storage.put(key, fallback);
+      // Normalizer yang sama dengan route PUT, jadi hasil reset tidak mungkin punya bentuk
+      // berbeda dari yang dibaca overlay.
+      await this.ctx.storage.put(aux.key, aux.normalize(null));
       this.broadcast(JSON.stringify({ type: 'aux_changed', kind }));
       await this.scheduleHeartbeat();
       return;

@@ -4,6 +4,11 @@ cloudflare/public/
 .dev.vars*
 .env*
 
+# Artefak build: digenerate ulang oleh `npm run build:matrix` (dijalankan otomatis oleh
+# build:cloudflare). Committingnya hanya risking served data yang tertinggal dari
+# scripts/draft-matrix-source.mjs yang sudah diedit.
+assets/hero-matrix.json
+
 __pycache__/
 *.pyc
 .DS_Store

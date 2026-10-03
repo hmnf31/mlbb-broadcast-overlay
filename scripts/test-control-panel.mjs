@@ -7,6 +7,9 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/^\//, '');
 const html = await readFile(`${ROOT}/frontend/control/index.html`, 'utf8');
 const appSource = await readFile(`${ROOT}/frontend/control/app.js`, 'utf8');
 const profileSource = await readFile(`${ROOT}/frontend/shared/profile.js`, 'utf8');
+// The draft editor needs the real analytics module; without it initAuxEditors() throws when
+// it writes the server copy of the draft back into the form.
+const draftAnalyticsSource = await readFile(`${ROOT}/frontend/shared/draft-analytics.js`, 'utf8');
 
 let passed = 0;
 let failed = 0;
@@ -39,12 +42,18 @@ const errors = [];
 // The control page talks to ProfileKit and LiveSocket. ProfileKit itself is the real file
 // so the profile nav is exercised for real; only the network calls are replaced.
 window.eval(profileSource);
+window.eval(draftAnalyticsSource);
 const Kit = window.ProfileKit;
 window.localStorage.setItem('mlbb_overlay_key_testslug12345', 'k'.repeat(32));
 Kit.describe = async () => ({ ok: true, profile: { name: 'Profil Tes', claimed: true } });
 Kit.claim = async () => ({ ok: true, ownerKey: 'k'.repeat(32) });
 Kit.pushState = async () => ({ ok: true });
 Kit.fetchState = async () => ({ ok: false });
+// Aux editors are the least covered part of this page, so they get a real round-trip stub
+// instead of the blanket 'sent' the socket uses.
+const auxPuts = [];
+Kit.fetchAux = async (unusedSlug, kind) => ({ ok: false, value: undefined, kind });
+Kit.pushAux = async (unusedSlug, kind, value) => { auxPuts.push({ kind, value }); return { ok: true }; };
 const sentMessages = [];
 window.LiveSocket = {
   create: (options) => {
@@ -60,6 +69,11 @@ window.LiveSocket = {
 };
 window.addEventListener('error', (event) => errors.push(event.message));
 window.console.error = (...args) => errors.push(args.join(' '));
+
+// initAuxEditors() awaits the registry fetch before it builds any editor, and jsdom has no
+// fetch. Reject immediately so the promise settles within this test's microtask drain
+// instead of hanging on a real network call.
+window.fetch = async () => { throw new Error('offline in test'); };
 
 // jsdom does not implement the pointer capture API. Real browsers do; the app must not
 // depend on it, and the polyfill lets this test exercise the actual drag maths.
@@ -222,6 +236,115 @@ section('Klik tanpa geser tidak membakar broadcast');
 section('Socket profile-aware');
 check('liveSocket dibuat dengan slug', sentMessages[0]?.slug === 'testslug12345', JSON.stringify(sentMessages[0]?.slug));
 check('liveSocket membawa ownerKey', sentMessages[0]?.ownerKey === 'k'.repeat(32));
+
+section('Editor player 5v5 benar-benar menyimpan');
+{
+  // Let initAuxEditors() finish: it awaits the registry fetch, then builds the editors and
+  // applies the server copy of result/players/draft.
+  for (let index = 0; index < 6; index += 1) await new Promise((resolve) => setImmediate(resolve));
+
+  // Regression: savePlayersConfig() used to call readPlayersConfig() again, which rebuilt
+  // the roster from localStorage and threw away the object the row handlers had just
+  // mutated. Nothing the operator typed was ever pushed or persisted.
+  const row = document.querySelector('#players-blue .player-block .player-row');
+  const nameInput = row.querySelector('input[type="text"]');
+  nameInput.value = 'Kurus';
+  nameInput.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+  const latestPlayersPut = auxPuts.filter((entry) => entry.kind === 'players').at(-1);
+  check('nama player masuk ke payload', latestPlayersPut?.value?.blue?.[0]?.name === 'Kurus',
+    JSON.stringify(latestPlayersPut?.value?.blue?.[0]?.name));
+  check('nama player tersimpan di localStorage',
+    JSON.parse(window.localStorage.getItem('mlbb_overlay_config_testslug12345') || '{}').players?.blue?.[0]?.name === 'Kurus');
+
+  // The result overlay (Fase 3) reads these straight off the roster, so they must round-trip.
+  const detailInputs = [...document.querySelectorAll('#players-blue .player-block:first-child .player-detail input')];
+  const ratingInput = detailInputs[0];
+  ratingInput.value = '14.2';
+  ratingInput.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const afterRating = auxPuts.filter((entry) => entry.kind === 'players').at(-1);
+  check('PTS player tersimpan', afterRating?.value?.blue?.[0]?.rating === 14.2,
+    String(afterRating?.value?.blue?.[0]?.rating));
+  check('nama player tidak hilang saat simpan PTS',
+    afterRating?.value?.blue?.[0]?.name === 'Kurus', afterRating?.value?.blue?.[0]?.name);
+
+  check('satu player punya 8 field detail', detailInputs.length === 8, `${detailInputs.length} input`);
+  check('editor tidak menampilkan hero default untuk slot kosong',
+    !document.querySelector('#players-red .player-row img').hasAttribute('src'));
+}
+
+section('Input layar hasil yang dulu tidak ada');
+{
+  check('ada pemilih mode mvp/scoreboard', Boolean(document.getElementById('result-mode-input')));
+  check('ada skor seri manual blue', Boolean(document.getElementById('result-series-blue-input')));
+  check('ada skor seri manual red', Boolean(document.getElementById('result-series-red-input')));
+  check('ada catatan caster', Boolean(document.getElementById('result-caster-note-input')));
+  check('ada label panggung', Boolean(document.getElementById('result-stage-label-input')));
+  check('ada objective turtle/lord/turret dua tim',
+    ['turtle', 'lord', 'turret'].every((group) => ['blue', 'red'].every((side) =>
+      Boolean(document.getElementById(`result-${group}-${side}-input`)))));
+
+  // Each of these fires the result editor's own change listener; the mode picker is a
+  // <select>, so it is the case that a input[id^=...] selector would have silently skipped.
+  const fire = (id, value) => {
+    const input = document.getElementById(id);
+    input.value = value;
+    input.dispatchEvent(new window.Event('change', { bubbles: true }));
+  };
+  fire('result-mode-input', 'scoreboard');
+  fire('result-series-blue-input', '2');
+  fire('result-turret-red-input', '5');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const resultPut = auxPuts.filter((entry) => entry.kind === 'result').at(-1);
+  check('mode scoreboard tersimpan', resultPut?.value?.mode === 'scoreboard', resultPut?.value?.mode);
+  check('skor seri manual tersimpan', resultPut?.value?.seriesScore?.blue === 2, String(resultPut?.value?.seriesScore?.blue));
+  check('objective turret red tersimpan', resultPut?.value?.objectives?.turret?.red === 5, String(resultPut?.value?.objectives?.turret?.red));
+}
+
+section('Ketahanan penyimpanan dan status');
+{
+  // A truncated localStorage value used to throw out of getConfig() at top level, which left
+  // the page with no listeners at all.
+  window.localStorage.setItem('mlbb_overlay_config_testslug12345', '{"tournamentName":"half');
+  const recovered = window.eval('getConfig()');
+  check('config rusak jatuh ke default, tidak melempar', recovered?.tournamentName === 'MLBB Official League', String(recovered?.tournamentName));
+  // Put a valid value back so the remaining checks don't keep tripping the recovery path.
+  window.localStorage.removeItem('mlbb_overlay_config_testslug12345');
+
+// QuotaExceededError was thrown inside the click handler, so nothing ran and no message appeared.
+  // jsdom's Storage is a Proxy, so the method has to be replaced on the prototype.
+  const realSetItem = window.Storage.prototype.setItem;
+  window.Storage.prototype.setItem = function setItem() {
+    const error = new Error('quota');
+    error.name = 'QuotaExceededError';
+    throw error;
+  };
+  const overflowStatus = window.eval('setConfig({ customItems: [] })');
+  window.Storage.prototype.setItem = realSetItem;
+  check('setConfig melaporkan gagal saat penuh', overflowStatus === false, String(overflowStatus));
+  check('operator diberi pesan penyimpanan penuh', document.getElementById('status').textContent.includes('Penyimpanan browser penuh'),
+    document.getElementById('status').textContent);
+
+  // A rejected write must never be reported as "queued and resent automatically".
+  const rejectedText = window.eval("describeLiveResult('rejected', 'TERKIRIM', 'DIANTRE')");
+  check('rejected tidak memakai teks antrean', rejectedText !== 'DIANTRE', rejectedText);
+  check('pesan rejected menjelaskan akibatnya', rejectedText.includes('ditolak'), rejectedText);
+  check('pesan rejected memberi jalan keluar', rejectedText.includes('beranda') && rejectedText.includes('muat ulang'), rejectedText);
+  check('status terkirim tetap dipakai saat sukses',
+    window.eval("describeLiveResult('sent', 'TERKIRIM', 'DIANTRE')") === 'TERKIRIM');
+
+  // The OCR page writes this key ~1x/sec; repainting over the operator's typing was the
+  // worst day-of-broadcast failure in the app.
+  const timer = document.querySelector('#control-form [name="tournamentName"]');
+  const typedBefore = '77';
+  timer.value = typedBefore;
+  timer.dispatchEvent(new window.Event('input', { bubbles: true }));
+  window.dispatchEvent(Object.assign(new window.Event('storage'), { key: 'mlbb_overlay_config_testslug12345' }));
+  check('input yang sedang diketik tidak ditimpa storage event', timer.value === typedBefore, timer.value);
+  check('operator diberi tahu state server berubah',
+    document.getElementById('status').textContent.includes('tidak ditimpa'), document.getElementById('status').textContent);
+}
 
 console.log(`\n========================================`);
 console.log(`  ${passed} passed, ${failed} failed`);

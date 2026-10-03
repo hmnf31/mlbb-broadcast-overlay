@@ -283,20 +283,9 @@ function getCrop(source, region) {
 }
 
 function parseRecognizedValue(key, rawText) {
-  const text = rawText.trim().replace(/\s+/g, ' ');
-  if (key === 'timer') {
-    const timerMatch = text.match(/(\d{1,2})\s*[:.\u00b7]\s*(\d{2})/);
-    return timerMatch ? Number(timerMatch[1]) * 60 + Number(timerMatch[2]) : null;
-  }
-  const numericText = text.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1');
-  const numberMatch = numericText.match(/[+-]?\d+(?:[.,]\d+)?/);
-  if (!numberMatch) return null;
-  const abbreviatedGold = key.endsWith('Gold') && /K/i.test(text);
-  const value = abbreviatedGold
-    ? Number(numberMatch[0].replace(',', '.')) * 1000
-    : Number(numberMatch[0].replace(/[,.]/g, ''));
-  if (!Number.isFinite(value)) return null;
-  return value;
+  // Implementasi parsing dipindah ke shared/ocr-parse.js supaya halaman ini dan panel
+  // verifikasi tidak bisa berbeda. Logikanya tidak diubah saat dipindah.
+  return window.OcrParse.parseRecognizedValue(key, rawText);
 }
 
 async function connectAndSend(matchUpdate) {

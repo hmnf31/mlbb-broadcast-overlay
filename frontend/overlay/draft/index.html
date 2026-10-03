@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Draft Overlay</title>
+    <link rel="stylesheet" href="/frontend/overlay/draft/styles.css" />
+  </head>
+  <body>
+    <div class="draft-shell" id="draft-shell">
+      <!-- Ticker:round aktif, patch matriks, dan sumber data. Sumber data wajib terlihat:
+           advantage di layar ini berasal dari tabel kurasi, bukan statistik pertandingan. -->
+      <header class="draft-ticker">
+        <div class="draft-ticker-left">
+          <span class="draft-chip">LIVE DRAFT</span>
+          <span class="draft-round">ROUND <b id="draft-round">1</b></span>
+        </div>
+        <div class="draft-ticker-right">
+          <span class="draft-source" id="draft-source">matriks: memuat…</span>
+        </div>
+      </header>
+
+      <!-- Advantage bar: widget utama. Bar bergerak mengikuti advantage tim biru. -->
+      <section class="advantage" aria-label="Advantage draft">
+        <div class="advantage-side advantage-side-blue">
+          <span class="advantage-team" id="advantage-blue-name">BLUE</span>
+          <span class="advantage-value" id="advantage-blue-value">+0</span>
+        </div>
+        <div class="advantage-track">
+          <div class="advantage-fill" id="advantage-fill"></div>
+          <div class="advantage-mid"></div>
+        </div>
+        <div class="advantage-side advantage-side-red">
+          <span class="advantage-value" id="advantage-red-value">+0</span>
+          <span class="advantage-team" id="advantage-red-name">RED</span>
+        </div>
+      </section>
+
+      <main class="draft-board">
+        <!-- Papan biru -->
+        <section class="board-side board-blue" data-side="blue">
+          <header class="board-head">
+            <span class="board-title" id="board-blue-title">BLUE</span>
+            <span class="board-badge">ALLY</span>
+          </header>
+          <ol class="board-bans" id="board-blue-bans" aria-label="Ban biru"></ol>
+          <ol class="board-picks" id="board-blue-picks" aria-label="Pick biru"></ol>
+        </section>
+
+        <!-- Matchup kunci: pasangan yang paling menentukan draft ini -->
+        <section class="board-matchups">
+          <h2 class="board-matchups-title">KEY MATCHUPS</h2>
+          <ul class="matchup-list" id="matchup-list"></ul>
+        </section>
+
+        <!-- Papan merah -->
+        <section class="board-side board-red" data-side="red">
+          <header class="board-head">
+            <span class="board-badge board-badge-enemy">ENEMY</span>
+            <span class="board-title" id="board-red-title">RED</span>
+          </header>
+          <ol class="board-bans" id="board-red-bans" aria-label="Ban merah"></ol>
+          <ol class="board-picks" id="board-red-picks" aria-label="Pick merah"></ol>
+        </section>
+      </main>
+
+      <!-- Rekomendasi: diisi engine, bukan hardcode. -->
+      <section class="recommend">
+        <h2 class="recommend-title">RECOMMENDED · <span id="recommend-side">BLUE</span></h2>
+        <ol class="recommend-list" id="recommend-list"></ol>
+      </section>
+    </div>
+
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/shared/draft-analytics.js"></script>
+    <script src="/frontend/overlay/draft/app.js"></script>
+  </body>
+</html>

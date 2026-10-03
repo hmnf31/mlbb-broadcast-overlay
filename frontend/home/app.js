@@ -18,6 +18,11 @@
     blueTeam: document.getElementById('blue-team'),
     redTeam: document.getElementById('red-team'),
     create: document.getElementById('create-profile'),
+    createdPanel: document.getElementById('created-panel'),
+    createdSummary: document.getElementById('created-summary'),
+    createdLinks: document.getElementById('created-links'),
+    createdControl: document.getElementById('created-control'),
+    createdDismiss: document.getElementById('created-dismiss'),
     registryStatus: document.getElementById('registry-status'),
     registryBody: document.getElementById('registry-body'),
     profileList: document.getElementById('profile-list'),
@@ -189,6 +194,44 @@
 
   // --- create ------------------------------------------------------------
 
+  // Halaman tujuan profil. Dipakai juga oleh panel "2b. Profil siap dipakai" supaya
+  // operator tidak perlu menghafal pola URL tiap kali profil baru dibuat.
+  const PROFILE_LINKS = [
+    { label: 'Control panel', page: 'control', hint: 'Operator: semua pengaturan dan preview.' },
+    { label: 'Overlay Gameplay', page: 'overlay/gameplay', hint: 'OBS browser source, 1920x1080.' },
+    { label: 'Overlay Draft', page: 'overlay/draft', hint: 'OBS browser source, layar draft pick.' },
+    { label: 'Layar Hasil', page: 'overlay/result', hint: 'OBS browser source, MVP + scoreboard.' },
+    { label: 'Verifikasi', page: 'verify', hint: 'Cek bacaan sebelum push ke stream.' },
+    { label: 'Kalibrasi OCR', page: 'debug', hint: 'Kroi ROI dan Field Lock.' },
+  ];
+
+  function showCreatedPanel(slug, name) {
+    const panel = el.createdPanel;
+    if (!panel) return;
+    el.createdSummary.textContent = `"${name}" dibuat dengan slug ${slug}. Salin link yang kamu butuh:`;
+    el.createdLinks.replaceChildren();
+    for (const entry of PROFILE_LINKS) {
+      const path = Kit.pageUrl(slug, entry.page);
+      const block = document.createElement('div');
+      block.className = 'created-link';
+      const label = document.createElement('span');
+      label.className = 'created-link-label';
+      label.textContent = entry.label;
+      const hint = document.createElement('span');
+      hint.className = 'created-link-hint';
+      hint.textContent = entry.hint;
+      block.append(label, hint, urlRow(entry.label, path));
+      el.createdLinks.append(block);
+    }
+    el.createdControl.onclick = () => window.location.assign(Kit.pageUrl(slug, 'control'));
+    panel.hidden = false;
+  // Hanya progressif: `scrollIntoView` tidak ada di semua lingkungan (mis. jsdom pada
+  // tes), dan kegagalannya tidak boleh menghentikan alur pembuatan profil yang sukses.
+  if (typeof panel.scrollIntoView === 'function') {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
   async function createProfile() {
     notice('');
     const name = el.profileName.value.trim() || 'Profil saya';
@@ -201,9 +244,11 @@
         return;
       }
       el.profileName.value = '';
-      notice(`Profil "${name}" dibuat. Membuka control panel...`, 'ok');
+      // Jangan langsung pindah halaman. Tampilkan opsi link dulu supaya operator punya
+      // salinan URL di halaman yang sama, lalu memilih mau ke mana.
+      notice(`Profil "${name}" dibuat. Opsi link slug muncul di bawah.`, 'ok');
       renderProfiles();
-      window.location.assign(Kit.profileUrl(result.slug, 'control'));
+      showCreatedPanel(result.slug, name);
     } finally {
       el.create.disabled = false;
     }
@@ -632,6 +677,9 @@ async function sendFeedback() {
       renderTeamPickers();
     });
     el.adopt.addEventListener('click', adoptProfile);
+    el.createdDismiss?.addEventListener('click', () => {
+      if (el.createdPanel) el.createdPanel.hidden = true;
+    });
     el.openBySlug.addEventListener('click', openBySlug);
     el.importBundle.addEventListener('change', (event) => importBundle(event.target.files?.[0]));
     el.sendFeedback?.addEventListener('click', sendFeedback);

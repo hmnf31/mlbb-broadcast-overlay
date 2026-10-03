@@ -144,15 +144,24 @@ function getConfig() {
   return config;
 }
 
+// Every score, gold and objective field passes through here. The control panel clamps on
+// the way in, but the live state can also arrive through the merge path or the local
+// backend, so a non-finite or negative value would otherwise reach the screen as
+// "NaN" / "-01:-50".
+function countOf(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : 0;
+}
+
 function formatTimer(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+  const safe = countOf(totalSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function formatGold(value) {
-  const numeric = Number(value || 0);
-  return `${(numeric / 1000).toFixed(1)}K`;
+  return `${(countOf(value) / 1000).toFixed(1)}K`;
 }
 
 // Selisih gold selalu dihitung dari kedua angka gold, tidak pernah dikirim terpisah.
@@ -239,6 +248,27 @@ function applyLayout(config) {
 function applyDesignScale() {
   const shell = document.getElementById('overlay-shell');
   document.documentElement.style.setProperty('--design-scale', String(shell.clientWidth / 1280));}
+
+// The shell ships hidden so a source that never receives a snapshot shows an empty frame
+// instead of the placeholder text baked into index.html. The attribute is reused from the
+// other `.item` elements (header-image, bo2-*, roster-*), so no new styling is involved.
+// Unhiding must be followed by applyDesignScale(): clientWidth is 0 while hidden.
+function revealOverlay() {
+  const shell = document.getElementById('overlay-shell');
+  if (!shell || !shell.hidden) return;
+  shell.hidden = false;
+  applyDesignScale();
+}
+
+// Assigning `img.src` restarts the load/decode even when the value is unchanged, which for
+// the operator-uploaded header PNG happens on every single snapshot. Skip the write when
+// the resolved source is already in place.
+function setImageSource(element, source) {
+  if (!element) return;
+  const next = typeof source === 'string' && source ? source : '';
+  if (element.getAttribute('src') === next) return;
+  element.src = next;
+}
 
 function enablePositionEditor() {
   if (!new URLSearchParams(window.location.search).has('edit')) return;
@@ -353,33 +383,33 @@ function render(config, stateOverride = null) {
   renderCustomItems(configState);
   applyLayout(configState);
 
-  ui.tournamentName.textContent = configState.tournamentName;
+  ui.tournamentName.textContent = configState.tournamentName || '';
   ui.headerImage.hidden = !configState.headerImage;
   if (configState.headerImage) {
-    ui.headerImage.src = configState.headerImage;
+    setImageSource(ui.headerImage, configState.headerImage);
     ui.headerImage.style.width = `calc(${Number(configState.headerWidth) || 1280}px * var(--design-scale))`;
   }
-  ui.roundName.textContent = configState.roundName;
-  ui.blueName.textContent = configState.blueTeam.name;
-  ui.redName.textContent = configState.redTeam.name;
-  ui.blueLogo.src = configState.blueTeam.logo;
-  ui.redLogo.src = configState.redTeam.logo;
+  ui.roundName.textContent = configState.roundName || '';
+  ui.blueName.textContent = configState.blueTeam.name || '';
+  ui.redName.textContent = configState.redTeam.name || '';
+  setImageSource(ui.blueLogo, configState.blueTeam.logo);
+  setImageSource(ui.redLogo, configState.redTeam.logo);
 
   const match = configState.match;
-  ui.matchTimer.textContent = formatTimer(Number(match.timer || 0));
-  ui.blueKills.textContent = match.blueKills ?? 0;
-  ui.redKills.textContent = match.redKills ?? 0;
-  ui.blueGold.textContent = formatGold(match.blueGold ?? 0);
-  ui.redGold.textContent = formatGold(match.redGold ?? 0);
+  ui.matchTimer.textContent = formatTimer(Number(match.timer) || 0);
+  ui.blueKills.textContent = countOf(match.blueKills);
+  ui.redKills.textContent = countOf(match.redKills);
+  ui.blueGold.textContent = formatGold(countOf(match.blueGold));
+  ui.redGold.textContent = formatGold(countOf(match.redGold));
   ui.goldDiff.textContent = formatGoldDiff(goldDiffOf(match));
   ui.goldDiff.style.color = goldDiffColor(match, configState.style);
 
-  ui.turtleBlue.textContent = match.turtleBlue ?? 0;
-  ui.turtleRed.textContent = match.turtleRed ?? 0;
-  ui.lordBlue.textContent = match.lordBlue ?? 0;
-  ui.lordRed.textContent = match.lordRed ?? 0;
-  ui.towerBlue.textContent = match.towerBlue ?? 0;
-  ui.towerRed.textContent = match.towerRed ?? 0;
+  ui.turtleBlue.textContent = countOf(match.turtleBlue);
+  ui.turtleRed.textContent = countOf(match.turtleRed);
+  ui.lordBlue.textContent = countOf(match.lordBlue);
+  ui.lordRed.textContent = countOf(match.lordRed);
+  ui.towerBlue.textContent = countOf(match.towerBlue);
+  ui.towerRed.textContent = countOf(match.towerRed);
   renderBo2(match);
 
   ui.casterName.textContent = configState.casterName || '';
@@ -392,7 +422,10 @@ function renderRoster(side, container) {
   container.hidden = filled.length === 0;
   container.replaceChildren();
 
-  for (const player of players) {
+  // Iterate `filled`, not `players`: the server always pads each side to five rows, so a
+  // half-filled roster otherwise renders three blank cards with "-" and 0 0 0 on air. The
+  // result overlay already filters the same roster the same way.
+  for (const player of filled) {
     const card = document.createElement('div');
     card.className = 'roster-card';
 
@@ -531,6 +564,7 @@ const liveSocket = window.LiveSocket.create({
   onMessage: (message) => {
     if (message.type === 'snapshot' && message.payload) {
       lastSnapshot = message.payload;
+      revealOverlay();
       loadRemoteAssets(message.assetsVersion).then(() => render(getConfig(), lastSnapshot));
       if (message.payload?.players !== undefined) renderPlayers(message.payload.players);
       return;
@@ -558,5 +592,8 @@ window.addEventListener('resize', applyDesignScale);
 
 window.addEventListener('storage', (event) => {
   if (event.key !== configKey) return;
-  render(getConfig());
+  // Pass lastSnapshot through: without it a Control "Reset Default" (which only clears
+  // localStorage and pushes nothing) makes this source fall back to defaultConfig and
+  // paint placeholder numbers on air.
+  render(getConfig(), lastSnapshot);
 });

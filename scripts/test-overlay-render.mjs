@@ -109,9 +109,14 @@ async function main() {
   {
     const { document: gameplay, errors, sockets } = await boot('overlay/gameplay', 'http://127.0.0.1:8787/p/testslug12345/overlay/gameplay/');
     check('gameplay boot tanpa exception', errors.length === 0, errors.slice(0, 3).join(' | '));
+    // No snapshot yet: the shell must stay hidden so a source that never connects shows an
+    // empty frame instead of the placeholder text baked into index.html.
+    check('shell tersembunyi sebelum snapshot', gameplay.getElementById('overlay-shell').hidden === true);
 
     sockets[0].onMessage({ type: 'snapshot', payload: BO2_SNAPSHOT });
     await settle();
+
+    check('shell tampil setelah snapshot', gameplay.getElementById('overlay-shell').hidden === false);
 
     check('kill match sama', gameplay.getElementById('blue-kills').textContent === '18'
       && gameplay.getElementById('red-kills').textContent === '15',
@@ -131,7 +136,9 @@ async function main() {
 
     const rosterBlue = gameplay.getElementById('roster-blue');
     check('roster blue tampil', rosterBlue.hidden === false);
-    check('5 slot dirender even though data 1', rosterBlue.querySelectorAll('.roster-card').length === 2, String(rosterBlue.querySelectorAll('.roster-card').length));
+    // Only the filled slot is drawn. The server pads every side to five rows, so rendering
+    // the padding too would put blank "-" / 0 0 0 cards on air.
+    check('slot kosong tidak dirender', rosterBlue.querySelectorAll('.roster-card').length === 1, String(rosterBlue.querySelectorAll('.roster-card').length));
     check('nama + KDA player tampil', rosterBlue.textContent.includes('Kurus') && rosterBlue.textContent.includes('9'));
     check('hero image dirender', rosterBlue.querySelector('.roster-hero')?.getAttribute('src') === '/assets/heroes/aamon.png');
     check('item player dirender', rosterBlue.querySelectorAll('.roster-items img').length === 1);

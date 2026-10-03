@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verifikasi Admin</title>
+    <link rel="stylesheet" href="/frontend/verify/styles.css" />
+  </head>
+  <body>
+    <header class="verify-topbar">
+      <h1>Verifikasi Admin</h1>
+      <p class="verify-tagline">Safety net OCR: bacaan dibandingkan side-by-side dengan input manual, lalu push ke stream.</p>
+      <nav class="verify-nav" id="verify-nav" aria-label="Halaman profil ini"></nav>
+      <div class="verify-meta">
+        <span class="verify-provider" id="verify-provider">Provider: memuat…</span>
+        <span class="verify-claim" id="verify-claim"></span>
+      </div>
+    </header>
+
+    <main class="verify-body">
+      <!-- Sumber tangkapan layar. Dengan provider manual, gambar hanya dipakai sebagai
+           panduan mata operator, bukan di-OCR otomatis. -->
+      <section class="verify-panel verify-capture">
+        <h2>1. Sumber tangkapan layar</h2>
+        <div class="capture-row">
+          <button type="button" class="secondary" id="capture-file">Unggah screenshot</button>
+          <button type="button" class="secondary" id="capture-screen">Tangkap layar</button>
+          <input type="file" id="capture-input" accept="image/*" hidden />
+        </div>
+        <p class="verify-hint" id="capture-hint">Belum ada gambar. Unggah screenshot hasil match untuk membandingkan dengan angka di bawah.</p>
+        <div class="capture-preview">
+          <img id="capture-image" alt="" />
+          <span class="capture-empty" id="capture-empty">Tidak ada gambar</span>
+        </div>
+        <button type="button" class="primary" id="capture-run">Jalankan adapter OCR</button>
+        <p class="verify-status" id="capture-status"></p>
+      </section>
+
+      <!-- Tabel perbandingan. Kolom kiri = bacaan adapter, kolom kanan = nilai final yang
+           akan dipush. Ini inti "safety net": angka yang tampil di stream harus dilihat operator
+           atau berasal dari adapter, tidak pernah dari satu bacaan mentah. -->
+      <section class="verify-panel verify-table">
+        <h2>2. Perbandingan &amp; edit</h2>
+        <p class="verify-hint">
+          <span class="tier-chip tier-chip-auto">Tier 1 · adapter</span>
+          <span class="tier-chip tier-chip-manual">Tier 2 · manual</span>
+          Baris dengan sumber <b>lock</b> tidak boleh ditimpa adapter.
+        </p>
+        <table class="verify-grid">
+          <thead>
+            <tr>
+              <th scope="col">Field</th>
+              <th scope="col">Bacaan adapter</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Nilai final</th>
+              <th scope="col">Sumber</th>
+            </tr>
+          </thead>
+          <tbody id="verify-rows"></tbody>
+        </table>
+      </section>
+
+      <!-- Ringkasan sebelum commit ke stream. -->
+      <section class="verify-panel verify-summary">
+        <h2>3. Push ke stream</h2>
+        <dl class="summary-list">
+          <div><dt>Field terisi</dt><dd id="summary-filled">0 / 11</dd></div>
+          <div><dt>Beda dari adapter</dt><dd id="summary-diffs">0</dd></div>
+          <div><dt>Ditolak (lock)</dt><dd id="summary-rejected">0</dd></div>
+          <div><dt>Overlay terlihat</dt><dd id="summary-visible">-</dd></div>
+        </dl>
+        <button type="button" class="primary" id="push-button">Push ke Stream</button>
+        <button type="button" class="secondary" id="reset-button">Reset draft ini</button>
+        <p class="verify-status" id="push-status"></p>
+        <p class="verify-hint">
+          Verifikasi hanya menyentuh Field Lock gameplay (timer, kill, gold, turtle, lord, tower).
+          Layar hasil dan draft punya editor sendiri di control panel.
+        </p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="/frontend/shared/profile.js"></script>
+    <script src="/frontend/shared/live-socket.js"></script>
+    <script src="/frontend/shared/ocr-parse.js"></script>
+    <script src="/frontend/shared/ocr-adapter.js"></script>
+    <script src="/frontend/verify/app.js"></script>
+  </body>
+</html>

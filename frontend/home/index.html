@@ -53,6 +53,24 @@
       </section>
 
       <!-- ---------------------------------------------------------------- -->
+      <!-- Muncul HANYA setelah profil berhasil dibuat. Ini jawaban atas "generate
+           dulu, baru opsi link slug-nya": operator tidak pernah melihat link yang
+           belum ada, dan tidak perlu berburu ke tab baru hanya untuk=dead-end. -->
+      <section class="panel" id="created-panel" hidden>
+        <h2>2b. Profil siap dipakai</h2>
+        <p class="hint" id="created-summary"></p>
+        <div id="created-links" class="created-links"></div>
+        <div class="actions">
+          <button id="created-control" class="primary" type="button">Buka control panel</button>
+          <button id="created-dismiss" class="ghost" type="button">Tutup</button>
+        </div>
+        <p class="hint">
+          ownerKey hanya disimpan di browser ini dan tidak pernah ikut ke server. Kalau kamu
+          ganti perangkat, pakai panel "Profil saya" di bawah untuk menempelkan ulang.
+        </p>
+      </section>
+
+      <!-- ---------------------------------------------------------------- -->
       <section class="panel">
         <h2>3. Library aset</h2>
         <p class="hint">

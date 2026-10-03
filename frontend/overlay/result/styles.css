@@ -2,6 +2,14 @@
   box-sizing: border-box;
 }
 
+/* Default ini wajib ada. Tanpa `:root { --design-scale: 1 }`, setiap deklarasi
+   calc(Npx * var(--design-scale)) di file ini invalid-at-computed-value-time kalau
+   app.js gagal jalan (mis. profile.js 404), sehingga font jatuh ke 16px dan border/padding
+   ke 0 — overlay terlihat benar-benar rusak, bukan sekadar tidak berskala. */
+:root {
+  --design-scale: 1;
+}
+
 html,
 body {
   margin: 0;
@@ -44,7 +52,9 @@ body {
   font-weight: 900;
   letter-spacing: 0.06em;
   line-height: 1;
-  color: #ffd76a;
+  /* Token, bukan hex: file ini sebelumnya punya dua emas (#ffd76a di sini, --gold #f4ce00)
+     dan dua merah (#ff6666 di sini, --rose #ff525f) dalam satu overlay yang sama. */
+  color: var(--gold);
   text-shadow: 0 calc(4px * var(--design-scale)) calc(24px * var(--design-scale)) rgba(0, 0, 0, 0.65);
 }
 
@@ -85,7 +95,7 @@ body {
 }
 
 .result-team-red .result-team-score {
-  color: #ff6666;
+  color: var(--rose);
 }
 
 .result-separator {
@@ -123,5 +133,567 @@ body {
 }
 
 .result-stat-mvp dd {
-  color: #ffd76a;
+  color: var(--gold);
+}
+
+/* ---------------------------------------------------------------------------
+   Fase 3: stage hasil. `data-mode` di shell yang menentukan panel mana yang tampil,
+   jadi operator cukup mengganti satu field di control panel untuk berganti layar.
+   --------------------------------------------------------------------------- */
+
+.result-shell {
+  --gold: #f4ce00;
+  --rose: #ff525f;
+  --cyan: #00e5ff;
+  --surface: #0f131d;
+  --surface-low: #171b26;
+  --surface-high: #262a35;
+  --muted: #9fb3c8;
+}
+
+.result-stage {
+  flex: 1;
+  display: grid;
+  min-height: 0;
+  gap: calc(14px * var(--design-scale));
+}
+
+/* Mode MVP: kartu lebar, aside sempit di kanan. */
+.result-shell[data-mode='mvp'] .result-stage {
+  grid-template-columns: 1fr calc(190px * var(--design-scale));
+  grid-template-areas: 'mvp aside';
+}
+
+.result-shell[data-mode='mvp'] .mvp-panel {
+  grid-area: mvp;
+}
+
+.result-shell[data-mode='mvp'] .result-aside {
+  grid-area: aside;
+}
+
+/* Mode scoreboard: dua kolom tim penuh, aside disembunyikan karena tidak ada ruang. */
+.result-shell[data-mode='scoreboard'] .result-stage {
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: 'blue red';
+}
+
+.result-shell[data-mode='scoreboard'] .board-team-blue {
+  grid-area: blue;
+}
+
+.result-shell[data-mode='scoreboard'] .board-team-red {
+  grid-area: red;
+}
+
+.result-shell[data-mode='scoreboard'] .mvp-panel,
+.result-shell[data-mode='scoreboard'] .result-aside,
+.result-shell[data-mode='mvp'] .board-panel {
+  display: none;
+}
+
+/* --- kartu MVP ------------------------------------------------------------ */
+
+.mvp-panel {
+  display: grid;
+  grid-template-columns: calc(300px * var(--design-scale)) 1fr;
+  gap: calc(16px * var(--design-scale));
+  padding: calc(14px * var(--design-scale));
+  border-radius: calc(12px * var(--design-scale));
+  background: linear-gradient(140deg, rgba(38, 42, 53, 0.9), rgba(15, 19, 29, 0.94));
+  border: 1px solid rgba(244, 206, 0, 0.28);
+  box-shadow: 0 0 calc(30px * var(--design-scale)) rgba(244, 206, 0, 0.12);
+  min-height: 0;
+}
+
+.mvp-hero {
+  position: relative;
+  border-radius: calc(8px * var(--design-scale));
+  overflow: hidden;
+  background: var(--surface-high);
+}
+
+.mvp-hero-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mvp-hero-art[data-empty='true'] {
+  opacity: 0;
+}
+
+.mvp-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(6, 9, 15, 0.94));
+}
+
+.mvp-hero-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  padding: calc(8px * var(--design-scale));
+}
+
+.mvp-player {
+  font-size: calc(20px * var(--design-scale));
+  font-weight: 700;
+}
+
+.mvp-heroname {
+  font-size: calc(12px * var(--design-scale));
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mvp-role {
+  font-size: calc(10px * var(--design-scale));
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.mvp-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(9px * var(--design-scale));
+  min-width: 0;
+}
+
+.mvp-rating {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6px * var(--design-scale));
+}
+
+.mvp-rating-value {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(40px * var(--design-scale));
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.mvp-rating-label {
+  font-size: calc(12px * var(--design-scale));
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.mvp-kda {
+  display: flex;
+  gap: calc(16px * var(--design-scale));
+  margin: 0;
+}
+
+.mvp-kda div {
+  display: flex;
+  flex-direction: column;
+}
+
+.mvp-kda dt {
+  font-size: calc(10px * var(--design-scale));
+  color: var(--muted);
+  letter-spacing: 0.14em;
+}
+
+.mvp-kda dd {
+  margin: 0;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(22px * var(--design-scale));
+  font-weight: 700;
+}
+
+.mvp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(6px * var(--design-scale));
+  margin: 0;
+}
+
+.mvp-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--design-scale));
+  padding: calc(5px * var(--design-scale)) calc(7px * var(--design-scale));
+  border-radius: calc(5px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mvp-stats dt {
+  font-size: calc(9px * var(--design-scale));
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.mvp-stats dd {
+  margin: 0;
+  font-size: calc(14px * var(--design-scale));
+  font-weight: 600;
+}
+
+.mvp-items {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: calc(5px * var(--design-scale));
+}
+
+.mvp-items img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: calc(5px * var(--design-scale));
+  background: var(--surface-high);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mvp-meta-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: calc(6px * var(--design-scale));
+  margin: 0;
+}
+
+.mvp-meta-list div {
+  display: flex;
+  gap: calc(6px * var(--design-scale));
+  align-items: baseline;
+  min-width: 0;
+}
+
+.mvp-meta-list dt {
+  flex: none;
+  font-size: calc(9px * var(--design-scale));
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.mvp-meta-list dd {
+  margin: 0;
+  font-size: calc(11px * var(--design-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mvp-signature {
+  margin: 0;
+  font-size: calc(11px * var(--design-scale));
+  color: var(--cyan);
+  line-height: 1.4;
+}
+
+.mvp-signature:empty {
+  display: none;
+}
+
+/* --- scoreboard ----------------------------------------------------------- */
+
+.board-panel {
+  display: none;
+  gap: calc(14px * var(--design-scale));
+}
+
+.board-team {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--design-scale));
+  padding: calc(10px * var(--design-scale));
+  border-radius: calc(10px * var(--design-scale));
+  background: rgba(23, 27, 38, 0.9);
+  border: 1px solid var(--surface-high);
+  min-height: 0;
+}
+
+.board-team-blue {
+  border-top: calc(2px * var(--design-scale)) solid var(--cyan);
+}
+
+.board-team-red {
+  border-top: calc(2px * var(--design-scale)) solid var(--rose);
+}
+
+.board-team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(13px * var(--design-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.board-team-name {
+  font-weight: 700;
+}
+
+.board-team-blue .board-team-series {
+  color: var(--cyan);
+}
+
+.board-team-red .board-team-series {
+  color: var(--rose);
+}
+
+.board-team-series {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(18px * var(--design-scale));
+  font-weight: 700;
+}
+
+.board-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: calc(5px * var(--design-scale));
+  align-content: start;
+}
+
+.board-row {
+  display: grid;
+  grid-template-columns: calc(30px * var(--design-scale)) minmax(72px, 1.1fr) minmax(48px, 0.8fr) repeat(2, minmax(36px, 0.55fr)) calc(34px * var(--design-scale));
+  align-items: center;
+  gap: calc(6px * var(--design-scale));
+  padding: calc(4px * var(--design-scale)) calc(6px * var(--design-scale));
+  border-radius: calc(5px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.board-row[data-mvp='true'] {
+  background: rgba(244, 206, 0, 0.12);
+  border: 1px solid rgba(244, 206, 0, 0.3);
+}
+
+.board-row-hero {
+  width: calc(30px * var(--design-scale));
+  height: calc(30px * var(--design-scale));
+  border-radius: calc(5px * var(--design-scale));
+  object-fit: cover;
+  background: var(--surface-high);
+}
+
+.board-row-name {
+  font-size: calc(11px * var(--design-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-row-hero-name {
+  display: block;
+  font-size: calc(8px * var(--design-scale));
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.board-row-kda {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(11px * var(--design-scale));
+  white-space: nowrap;
+}
+
+.board-row-num {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(11px * var(--design-scale));
+  color: var(--muted);
+}
+
+/* --- radar -----------------------------------------------------------------
+   `radar` di state pemain dinormalisasi server ke lima angka 0-100 dengan sumbu
+   damage / survival / teamfight / push / farm. Render sebagai pentagon di kartu MVP
+   dan sebagai lima bar kecil di baris scoreboard, supaya kolom nama tidak tergerus. */
+
+.mvp-radar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4px * var(--design-scale));
+  margin: 0;
+  padding: calc(6px * var(--design-scale));
+  border-radius: calc(8px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--surface-high);
+}
+
+.mvp-radar[hidden] {
+  display: none;
+}
+
+.mvp-radar-chart {
+  width: calc(78px * var(--design-scale));
+  height: calc(78px * var(--design-scale));
+}
+
+.radar-chart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+}
+
+.radar-spoke {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.radar-fill {
+  fill: rgba(244, 206, 0, 0.28);
+  stroke: var(--gold);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.radar-dot {
+  fill: var(--gold);
+}
+
+.mvp-radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(2px * var(--design-scale)) calc(7px * var(--design-scale));
+  font-size: calc(8px * var(--design-scale));
+  color: var(--muted);
+}
+
+.radar-legend-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(3px * var(--design-scale));
+  white-space: nowrap;
+}
+
+.radar-legend-item i {
+  font-style: normal;
+}
+
+.radar-legend-item b {
+  color: var(--gold);
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-weight: 700;
+}
+
+.board-row-radar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.radar-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(2px * var(--design-scale));
+  height: calc(20px * var(--design-scale));
+}
+
+.radar-bar {
+  display: flex;
+  align-items: flex-end;
+  width: calc(4px * var(--design-scale));
+  height: 100%;
+  border-radius: calc(1px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.radar-bar i {
+  display: block;
+  width: 100%;
+  background: var(--cyan);
+  border-radius: calc(1px * var(--design-scale));
+}
+
+.board-team-red .radar-bar i {
+  background: var(--rose);
+}
+
+/* --- objectives + caster -------------------------------------------------- */
+
+.result-aside {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8px * var(--design-scale));
+  padding: calc(10px * var(--design-scale));
+  border-radius: calc(10px * var(--design-scale));
+  background: rgba(23, 27, 38, 0.9);
+  border: 1px solid var(--surface-high);
+}
+
+.objective-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--design-scale));
+  margin: 0;
+}
+
+.objective-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(8px * var(--design-scale));
+}
+
+.objective-row dt {
+  font-size: calc(10px * var(--design-scale));
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.objective-row dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: calc(4px * var(--design-scale));
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(15px * var(--design-scale));
+  font-weight: 700;
+}
+
+.objective-row dd span:first-child {
+  color: var(--cyan);
+}
+
+.objective-row dd span:last-child {
+  color: var(--rose);
+}
+
+.objective-row dd i {
+  font-style: normal;
+  color: var(--muted);
+  font-size: calc(11px * var(--design-scale));
+}
+
+.result-caster {
+  margin: 0;
+  font-size: calc(11px * var(--design-scale));
+  line-height: 1.4;
+  color: #dfe2f1;
+}
+
+.result-caster:empty,
+.result-stage-label:empty {
+  display: none;
+}
+
+.result-stage-label {
+  margin: 0;
+  font-size: calc(9px * var(--design-scale));
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
 }

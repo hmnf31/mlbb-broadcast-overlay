@@ -1,0 +1,435 @@
+* {
+  box-sizing: border-box;
+}
+
+/* Default ini wajib ada. Tanpa `:root { --design-scale: 1 }`, setiap deklarasi
+   calc(Npx * var(--design-scale)) di file ini invalid-at-computed-value-time kalau
+   app.js gagal jalan (mis. profile.js 404), sehingga font jatuh ke 16px dan border/padding
+   ke 0 — board terlihat benar-benar rusak, bukan sekadar tidak berskala. */
+:root {
+  --design-scale: 1;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Kanvas desain 1280x720 yang diskalakan ke lebar layar, sama seperti overlay result dan
+   gameplay supaya ukuran huruf di ketiga browser source terasa sama. */
+.draft-shell {
+  --cyan: #00e5ff;
+  --gold: #f4ce00;
+  --rose: #ff525f;
+  --surface: #0f131d;
+  --surface-low: #171b26;
+  --surface-high: #262a35;
+  --surface-top: #313540;
+  --on-surface: #dfe2f1;
+  --muted: #bac9cc;
+  --outline: #3b494c;
+
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  margin: auto;
+  padding: calc(20px * var(--design-scale)) calc(28px * var(--design-scale));
+  display: none;
+  flex-direction: column;
+  gap: calc(12px * var(--design-scale));
+  overflow: hidden;
+  color: var(--on-surface);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.10), transparent 55%),
+    linear-gradient(180deg, rgba(15, 19, 29, 0.94), rgba(6, 9, 15, 0.97));
+}
+
+.draft-shell[data-visible='true'] {
+  display: flex;
+}
+
+/* --- ticker --------------------------------------------------------------- */
+
+.draft-ticker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(12px * var(--design-scale));
+  padding: calc(6px * var(--design-scale)) calc(14px * var(--design-scale));
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: calc(6px * var(--design-scale));
+  background: rgba(10, 14, 24, 0.86);
+  font-size: calc(11px * var(--design-scale));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.draft-ticker-left {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--design-scale));
+}
+
+.draft-chip {
+  padding: calc(3px * var(--design-scale)) calc(9px * var(--design-scale));
+  border-radius: calc(4px * var(--design-scale));
+  background: rgba(0, 229, 255, 0.16);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.draft-round {
+  color: var(--muted);
+}
+
+.draft-round b {
+  color: var(--gold);
+}
+
+/* Sumber data tidak boleh disembunyikan: advantage ini bukan hasil statistik. */
+.draft-source {
+  color: var(--muted);
+  font-size: calc(10px * var(--design-scale));
+  letter-spacing: 0.08em;
+}
+
+.draft-source[data-state='curated'] {
+  color: var(--gold);
+}
+
+.draft-source[data-state='missing'] {
+  color: var(--rose);
+}
+
+/* --- advantage bar -------------------------------------------------------- */
+
+.advantage {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: calc(14px * var(--design-scale));
+}
+
+.advantage-side {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8px * var(--design-scale));
+  font-size: calc(13px * var(--design-scale));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.advantage-side-blue {
+  justify-content: flex-end;
+}
+
+.advantage-team {
+  color: var(--muted);
+}
+
+.advantage-value {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(24px * var(--design-scale));
+  font-weight: 700;
+}
+
+.advantage-side-blue .advantage-value {
+  color: var(--cyan);
+}
+
+.advantage-side-red .advantage-value {
+  color: var(--rose);
+}
+
+.advantage-track {
+  position: relative;
+  height: calc(22px * var(--design-scale));
+  border-radius: calc(11px * var(--design-scale));
+  border: 1px solid var(--outline);
+  background: rgba(38, 42, 53, 0.9);
+  overflow: hidden;
+}
+
+/* Bar terisi dari tengah. `data-leader` menentukan warna, `data-magnitude` lebar. */
+.advantage-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.85), rgba(0, 229, 255, 0.35));
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.advantage-fill[data-leader='red'] {
+  background: linear-gradient(90deg, rgba(255, 82, 95, 0.35), rgba(255, 82, 95, 0.85));
+  transform: translateX(-100%);
+}
+
+.advantage-fill[data-leader='tie'] {
+  background: rgba(244, 206, 0, 0.55);
+}
+
+.advantage-mid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--muted);
+  opacity: 0.7;
+}
+
+/* --- papan ---------------------------------------------------------------- */
+
+.draft-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: calc(12px * var(--design-scale));
+  min-height: 0;
+}
+
+.board-side {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8px * var(--design-scale));
+  padding: calc(10px * var(--design-scale));
+  border-radius: calc(8px * var(--design-scale));
+  background: rgba(23, 27, 38, 0.82);
+  border: 1px solid var(--surface-high);
+  min-height: 0;
+}
+
+.board-blue {
+  border-top: calc(2px * var(--design-scale)) solid var(--cyan);
+}
+
+.board-red {
+  border-top: calc(2px * var(--design-scale)) solid var(--rose);
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(8px * var(--design-scale));
+}
+
+.board-title {
+  font-size: calc(15px * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.board-badge {
+  padding: calc(2px * var(--design-scale)) calc(7px * var(--design-scale));
+  border-radius: calc(3px * var(--design-scale));
+  background: rgba(0, 229, 255, 0.16);
+  color: var(--cyan);
+  font-size: calc(9px * var(--design-scale));
+  letter-spacing: 0.16em;
+}
+
+.board-badge-enemy {
+  background: rgba(255, 82, 95, 0.16);
+  color: var(--rose);
+}
+
+.board-bans,
+.board-picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: calc(6px * var(--design-scale));
+}
+
+.board-bans {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.board-picks {
+  grid-template-columns: repeat(5, 1fr);
+  align-content: start;
+}
+
+.board-picks:empty::before {
+  content: 'Belum ada pick';
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: calc(11px * var(--design-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-slot {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: calc(5px * var(--design-scale));
+  overflow: hidden;
+  background: var(--surface-high);
+  border: 1px solid var(--surface-top);
+}
+
+.hero-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Slot ban sengaja diredupkan supaya tidak tertukar dengan pick saat dibaca cepat. */
+.hero-slot[data-kind='ban'] {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}
+
+.hero-slot[data-empty='true'] {
+  border-style: dashed;
+  border-color: var(--outline);
+  background: transparent;
+}
+
+.hero-slot[data-active='true'] {
+  border-color: var(--gold);
+  box-shadow: 0 0 calc(10px * var(--design-scale)) rgba(244, 206, 0, 0.5);
+}
+
+.hero-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: calc(2px * var(--design-scale)) calc(3px * var(--design-scale));
+  background: linear-gradient(180deg, transparent, rgba(6, 9, 15, 0.92));
+  font-size: calc(8px * var(--design-scale));
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- matchup kunci -------------------------------------------------------- */
+
+.board-matchups {
+  width: calc(150px * var(--design-scale));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--design-scale));
+  padding: calc(8px * var(--design-scale));
+  border-radius: calc(6px * var(--design-scale));
+  background: rgba(10, 14, 24, 0.7);
+  border: 1px solid var(--outline);
+}
+
+.board-matchups-title,
+.recommend-title {
+  margin: 0;
+  font-size: calc(9px * var(--design-scale));
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.matchup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--design-scale));
+  font-size: calc(9px * var(--design-scale));
+}
+
+.matchup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(4px * var(--design-scale));
+}
+
+.matchup-win {
+  color: var(--cyan);
+}
+
+.matchup-lose {
+  color: var(--rose);
+}
+
+.matchup-delta {
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: var(--muted);
+}
+
+/* --- rekomendasi ---------------------------------------------------------- */
+
+.recommend {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--design-scale));
+}
+
+.recommend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: calc(6px * var(--design-scale));
+}
+
+.recommend-item {
+  display: flex;
+  align-items: center;
+  gap: calc(7px * var(--design-scale));
+  padding: calc(5px * var(--design-scale));
+  border-radius: calc(5px * var(--design-scale));
+  background: rgba(23, 27, 38, 0.86);
+  border: 1px solid var(--surface-high);
+  min-width: 0;
+}
+
+.recommend-thumb {
+  width: calc(26px * var(--design-scale));
+  height: calc(26px * var(--design-scale));
+  flex: none;
+  border-radius: calc(4px * var(--design-scale));
+  object-fit: cover;
+  background: var(--surface-high);
+}
+
+.recommend-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recommend-name {
+  font-size: calc(10px * var(--design-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recommend-why {
+  font-size: calc(8px * var(--design-scale));
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recommend-score {
+  margin-left: auto;
+  flex: none;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(11px * var(--design-scale));
+  color: var(--gold);
+}

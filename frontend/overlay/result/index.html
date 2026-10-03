@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="/frontend/overlay/result/styles.css" />
   </head>
   <body>
-    <div class="result-shell" id="result-shell">
+    <div class="result-shell" id="result-shell" data-visible="false" data-outcome="win" data-mode="mvp">
+      <!-- Banner dan skor seri tetap di luar panel mode: keduanya dipakai di kedua tampilan,
+           dan ID-nya dipakai test-overlay-render.mjs. -->
       <div class="result-banner" id="result-banner">
         <span class="result-headline" id="result-headline">VICTORY</span>
         <span class="result-subline" id="result-subline"></span>
@@ -23,6 +25,96 @@
           <span class="result-team-score" id="result-red-score">0</span>
           <span class="result-team-name" id="result-red-name">Red</span>
         </div>
+      </div>
+
+      <div class="result-stage" id="result-stage">
+        <!-- Mode A: kartu MVP -->
+        <section class="mvp-panel" id="mvp-panel" aria-label="Kartu MVP">
+          <div class="mvp-hero">
+            <img class="mvp-hero-art" id="mvp-hero-art" alt="" />
+            <div class="mvp-hero-overlay"></div>
+            <div class="mvp-hero-meta">
+              <span class="mvp-player" id="mvp-player">-</span>
+              <span class="mvp-heroname" id="mvp-heroname">-</span>
+              <span class="mvp-role" id="mvp-role"></span>
+            </div>
+          </div>
+
+          <div class="mvp-body">
+            <div class="mvp-rating">
+              <span class="mvp-rating-value" id="mvp-rating">0.0</span>
+              <span class="mvp-rating-label">PTS</span>
+            </div>
+
+            <figure class="mvp-radar" id="mvp-radar" hidden>
+              <div class="mvp-radar-chart" id="mvp-radar-chart"></div>
+              <figcaption class="mvp-radar-legend" id="mvp-radar-legend"></figcaption>
+            </figure>
+
+            <dl class="mvp-kda">
+              <div><dt>K</dt><dd id="mvp-kills">0</dd></div>
+              <div><dt>D</dt><dd id="mvp-deaths">0</dd></div>
+              <div><dt>A</dt><dd id="mvp-assists">0</dd></div>
+            </dl>
+
+            <dl class="mvp-stats">
+              <div><dt>Level</dt><dd id="mvp-level">1</dd></div>
+              <div><dt>Gold</dt><dd id="mvp-gold">0</dd></div>
+              <div><dt>GPM</dt><dd id="mvp-gpm">0</dd></div>
+              <div><dt>Damage</dt><dd id="mvp-damage">0</dd></div>
+              <div><dt>DMG%</dt><dd id="mvp-damage-pct">0%</dd></div>
+              <div><dt>Turret</dt><dd id="mvp-turret">0</dd></div>
+            </dl>
+
+            <div class="mvp-items" id="mvp-items"></div>
+
+            <dl class="mvp-meta-list">
+              <div><dt>Spell</dt><dd id="mvp-spell">-</dd></div>
+              <div><dt>Emblem</dt><dd id="mvp-emblem">-</dd></div>
+            </dl>
+
+            <p class="mvp-signature" id="mvp-signature"></p>
+          </div>
+        </section>
+
+        <!-- Mode B: scoreboard penuh 10 pemain -->
+        <section class="board-panel" id="scoreboard-panel" aria-label="Scoreboard">
+          <div class="board-team board-team-blue">
+            <header class="board-team-head">
+              <span class="board-team-name" id="board-blue-name">Blue</span>
+              <span class="board-team-series" id="board-blue-series">0</span>
+            </header>
+            <ol class="board-rows" id="board-blue-rows"></ol>
+          </div>
+
+          <div class="board-team board-team-red">
+            <header class="board-team-head">
+              <span class="board-team-series" id="board-red-series">0</span>
+              <span class="board-team-name" id="board-red-name">Red</span>
+            </header>
+            <ol class="board-rows" id="board-red-rows"></ol>
+          </div>
+        </section>
+
+        <!-- Objectives + catatan caster, dipakai kedua mode. -->
+        <aside class="result-aside">
+          <dl class="objective-list">
+            <div class="objective-row">
+              <dt>Turtle</dt>
+              <dd><span id="objective-turtle-blue">0</span><i>-</i><span id="objective-turtle-red">0</span></dd>
+            </div>
+            <div class="objective-row">
+              <dt>Lord</dt>
+              <dd><span id="objective-lord-blue">0</span><i>-</i><span id="objective-lord-red">0</span></dd>
+            </div>
+            <div class="objective-row">
+              <dt>Tower</dt>
+              <dd><span id="objective-turret-blue">0</span><i>-</i><span id="objective-turret-red">0</span></dd>
+            </div>
+          </dl>
+          <p class="result-caster" id="result-caster-note"></p>
+          <p class="result-stage-label" id="result-stage-label"></p>
+        </aside>
       </div>
 
       <dl class="result-stats">

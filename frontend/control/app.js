@@ -116,6 +116,8 @@ const resultEditor = document.getElementById('result-editor');
 
 const RESULT_FIELDS = [
   ['result-visible', 'visible', 'bool'],
+  ['result-mode-input', 'mode', 'mode'],
+  ['result-stage-label-input', 'stageLabel', 'text'],
   ['result-headline-input', 'headline', 'text'],
   ['result-subline-input', 'subline', 'text'],
   ['result-game-input', 'gameNumber', 'int'],
@@ -124,11 +126,19 @@ const RESULT_FIELDS = [
   ['result-dealt-input', 'damageDealt', 'int'],
   ['result-taken-input', 'damageTaken', 'int'],
   ['result-mvp-input', 'mvp', 'text'],
+  ['result-caster-note-input', 'casterNote', 'text'],
 ];
 
 const defaultResultConfig = {
   visible: false,
+  mode: 'mvp',
+  stageLabel: '',
   seriesScore: { blue: 0, red: 0 },
+  objectives: {
+    turtle: { blue: 0, red: 0 },
+    lord: { blue: 0, red: 0 },
+    turret: { blue: 0, red: 0 },
+  },
   gameNumber: 1,
   bestOf: 5,
   durationSec: 0,
@@ -137,33 +147,96 @@ const defaultResultConfig = {
   mvp: '',
   headline: 'VICTORY',
   subline: '',
+  casterNote: '',
 };
 
+// Nested groups live outside RESULT_FIELDS because that list only walks flat scalars. The
+// server normalises exactly these shapes (worker.mjs normalizeResultState).
+const RESULT_SERIES_FIELDS = [
+  ['result-series-blue-input', 'blue'],
+  ['result-series-red-input', 'red'],
+];
+const RESULT_OBJECTIVE_FIELDS = [
+  ['result-turtle-blue-input', 'turtle', 'blue'],
+  ['result-turtle-red-input', 'turtle', 'red'],
+  ['result-lord-blue-input', 'lord', 'blue'],
+  ['result-lord-red-input', 'lord', 'red'],
+  ['result-turret-blue-input', 'turret', 'blue'],
+  ['result-turret-red-input', 'turret', 'red'],
+];
+
+function mergeResultConfig(raw) {
+  const value = { ...defaultResultConfig, ...(raw || {}) };
+  value.seriesScore = { ...defaultResultConfig.seriesScore, ...(value.seriesScore || {}) };
+  value.objectives = { ...defaultResultConfig.objectives, ...(value.objectives || {}) };
+  for (const group of ['turtle', 'lord', 'turret']) {
+    value.objectives[group] = {
+      ...defaultResultConfig.objectives[group],
+      ...(value.objectives[group] || {}),
+    };
+  }
+  return value;
+}
+
 const defaultPlayer = () => ({
-  name: '', hero: '', heroImage: '', level: 1, kills: 0, deaths: 0, assists: 0, items: [],
+  name: '',
+  hero: '',
+  heroImage: '',
+  level: 1,
+  kills: 0,
+  deaths: 0,
+  assists: 0,
+  rating: 0,
+  gold: 0,
+  gpm: 0,
+  damage: 0,
+  damagePct: 0,
+  turretDamage: 0,
+  battleSpell: '',
+  emblem: '',
+  items: [],
 });
 
 function readResultConfig() {
   const config = getConfig();
-  const result = { ...defaultResultConfig, ...(config.result || {}) };
+  const result = mergeResultConfig(config.result);
   for (const [id, key, type] of RESULT_FIELDS) {
     const input = document.getElementById(id);
     if (!input) continue;
     if (type === 'bool') result[key] = input.checked;
+    else if (type === 'mode') result[key] = input.value === 'scoreboard' ? 'scoreboard' : 'mvp';
     else if (type === 'int') result[key] = Number(input.value) || 0;
     else result[key] = input.value;
+  }
+  for (const [id, side] of RESULT_SERIES_FIELDS) {
+    const input = document.getElementById(id);
+    if (input) result.seriesScore[side] = Number(input.value) || 0;
+  }
+  for (const [id, group, side] of RESULT_OBJECTIVE_FIELDS) {
+    const input = document.getElementById(id);
+    if (input) result.objectives[group][side] = Number(input.value) || 0;
   }
   return result;
 }
 
 function writeResultConfig(result) {
-  const value = { ...defaultResultConfig, ...(result || {}) };
+  const value = mergeResultConfig(result);
   for (const [id, key, type] of RESULT_FIELDS) {
     const input = document.getElementById(id);
     if (!input) continue;
     if (type === 'bool') input.checked = value[key] === true;
+    else if (type === 'mode') input.value = value[key] === 'scoreboard' ? 'scoreboard' : 'mvp';
     else input.value = String(value[key] ?? '');
   }
+  for (const [id, side] of RESULT_SERIES_FIELDS) {
+    const input = document.getElementById(id);
+    if (input) input.value = String(value.seriesScore[side]);
+  }
+  for (const [id, group, side] of RESULT_OBJECTIVE_FIELDS) {
+    const input = document.getElementById(id);
+    if (input) input.value = String(value.objectives[group][side]);
+  }
+  renderMvpOptions();
   updateResultSeriesNote();
   const link = document.getElementById('result-obs-link');
   if (link) link.href = Kit.pageUrl(slug, 'overlay/result');
@@ -174,8 +247,26 @@ function updateResultSeriesNote() {
   if (!note) return;
   const bo2 = document.getElementById('bo2-enabled')?.checked === true;
   note.textContent = bo2
-    ? 'Skor seri memakai Seri BO2 di atas selama indikatornya aktif.'
-    : 'Skor seri memakai angka manual di bawah karena indikator BO2 dimatikan.';
+    ? 'Skor seri memakai Seri BO2 di atas selama indikatornya aktif, jadi angka manual diabaikan.'
+    : 'Indikator BO2 mati: layar hasil memakai Skor seri manual di bawah.';
+}
+
+// The result overlay resolves `result.mvp` with a fuzzy match against the roster, so a typo
+// silently highlights a different player. Offer the real roster names as suggestions.
+function renderMvpOptions() {
+  const datalist = document.getElementById('result-mvp-options');
+  if (!datalist || !playersState) return;
+  const names = [];
+  for (const side of ['blue', 'red']) {
+    for (const player of playersState[side] || []) {
+      if (player.name) names.push(player.name);
+    }
+  }
+  datalist.replaceChildren(...names.map((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    return option;
+  }));
 }
 
 async function saveResultConfig() {
@@ -192,6 +283,14 @@ async function saveResultConfig() {
   status.textContent = 'Layar hasil tersimpan di server profil.';
 }
 
+// Single source of truth for the roster editor. The per-row handlers below mutate this
+// object and then call savePlayersConfig(); if savePlayersConfig re-read localStorage it
+// would rebuild fresh objects from the pre-edit values and silently discard every change,
+// which is exactly what happened before. One object, one save path.
+// Left null on purpose: readPlayersConfig() touches configKey, which is declared further
+// down, so eager initialisation would hit the temporal dead zone.
+let playersState = null;
+
 function readPlayersConfig() {
   const config = getConfig();
   const players = config.players || {};
@@ -203,6 +302,7 @@ function readPlayersConfig() {
 }
 
 function writePlayersConfig(players) {
+  playersState = players;
   const config = getConfig();
   config.players = players;
   setConfig(config);
@@ -210,7 +310,7 @@ function writePlayersConfig(players) {
 
 async function savePlayersConfig() {
   if (!slug || !ownerKey) return;
-  const players = readPlayersConfig();
+  const players = playersState;
   writePlayersConfig(players);
   const response = await Kit.pushAux(slug, 'players', players, ownerKey);
   const note = document.getElementById('players-note');
@@ -220,6 +320,248 @@ async function savePlayersConfig() {
   }
   if (note) note.textContent = 'Player cards tersimpan di server profil ini.';
   status.textContent = 'Player cards tersimpan.';
+}
+
+// --- Layar draft (Fase 1) ---------------------------------------------------
+// Analitik dihitung ulang di sini dari matriks yang sama dengan overlay, jadi angka di panel
+// operator persis dengan yang tayang. Yang dikirim ke server tetap cuma slot pick/ban.
+const DraftAnalytics = window.DraftAnalytics;
+const draftEditor = document.getElementById('draft-editor');
+let draftMatrix = null;
+const DRAFT_SIDE_SLOTS = { blue: { picks: 'draft-blue-picks', bans: 'draft-blue-bans' }, red: { picks: 'draft-red-picks', bans: 'draft-red-bans' } };
+
+function readDraftConfig() {
+  const config = getConfig();
+  const state = DraftAnalytics.normalizeDraft(config.draft);
+  state.visible = document.getElementById('draft-visible')?.checked === true;
+  state.round = Number(document.getElementById('draft-round-input')?.value) || 1;
+  state.activeSide = document.getElementById('draft-active-side')?.value === 'red' ? 'red' : 'blue';
+  for (const side of ['blue', 'red']) {
+    for (const kind of ['picks', 'bans']) {
+      const slots = document.getElementById(DRAFT_SIDE_SLOTS[side][kind]);
+      if (!slots) continue;
+      const values = [...slots.querySelectorAll('select')]
+        .map((select) => select.value)
+        .filter(Boolean);
+      state[side][kind] = values;
+    }
+  }
+  return state;
+}
+
+function writeDraftConfig(value) {
+  const state = DraftAnalytics.normalizeDraft(value);
+  const visible = document.getElementById('draft-visible');
+  const round = document.getElementById('draft-round-input');
+  const activeSide = document.getElementById('draft-active-side');
+  if (visible) visible.checked = state.visible;
+  if (round) round.value = String(state.round);
+  if (activeSide) activeSide.value = state.activeSide;
+  for (const side of ['blue', 'red']) {
+    for (const kind of ['picks', 'bans']) {
+      const slots = document.getElementById(DRAFT_SIDE_SLOTS[side][kind]);
+      if (!slots) continue;
+      const selects = [...slots.querySelectorAll('select')];
+      const values = state[side][kind];
+      selects.forEach((select, index) => {
+        select.value = values[index] || '';
+      });
+    }
+  }
+  renderDraftAnalytics(state);
+}
+
+function buildDraftSlotSelects() {
+  const heroes = [...(registryCache?.categories?.heroes?.items || [])].sort((a, b) =>
+    (a.name || a.id).localeCompare(b.name || b.id),
+  );
+  for (const side of ['blue', 'red']) {
+    for (const [kind, id] of Object.entries(DRAFT_SIDE_SLOTS[side])) {
+      const container = document.getElementById(id);
+      if (!container) continue;
+      const slots = kind === 'picks' ? DraftAnalytics.PICK_SLOTS : DraftAnalytics.BAN_SLOTS;
+      container.replaceChildren();
+      for (let index = 0; index < slots; index += 1) {
+        const select = document.createElement('select');
+        select.dataset.side = side;
+        select.dataset.kind = kind;
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '-';
+        select.append(blank);
+        for (const hero of heroes) {
+          const option = document.createElement('option');
+          option.value = hero.id;
+          option.textContent = hero.name || hero.id;
+          select.append(option);
+        }
+        select.addEventListener('change', () => renderDraftAnalytics(readDraftConfig()));
+        container.append(select);
+      }
+    }
+  }
+}
+
+function renderDraftAnalytics(state) {
+  if (!draftEditor) return;
+  const report = DraftAnalytics.evaluate(state, draftMatrix);
+  const hasMatrix = Boolean(draftMatrix);
+
+  const fill = document.getElementById('draft-advantage-fill');
+  if (fill) {
+    fill.style.width = `${hasMatrix ? Math.min(50, Math.abs(report.advantage) / 2) : 0}%`;
+    fill.dataset.leader = report.leader;
+  }
+  const blue = document.getElementById('draft-blue-advantage');
+  const red = document.getElementById('draft-red-advantage');
+  if (blue) blue.textContent = hasMatrix ? signedDraft(report.advantage) : '--';
+  if (red) red.textContent = hasMatrix ? signedDraft(-report.advantage) : '--';
+
+  const list = document.getElementById('draft-recommend-list');
+  const sideLabel = document.getElementById('draft-recommend-side');
+  if (sideLabel) sideLabel.textContent = report.activeSide === 'red' ? 'RED' : 'BLUE';
+  if (list) {
+    list.replaceChildren();
+    for (const entry of report.recommendations[report.activeSide] || []) {
+      const item = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = entry.name;
+      const reason = entry.reasons.find((item_) => item_.kind === 'counter')
+        || entry.reasons.find((item_) => item_.kind === 'synergy')
+        || entry.reasons[0];
+      const why = document.createElement('span');
+      why.className = 'draft-recommend-why';
+      why.textContent = reason?.label || '';
+      const score = document.createElement('span');
+      score.className = 'draft-recommend-score';
+      score.textContent = entry.score > 0 ? `+${entry.score}` : String(entry.score);
+      item.append(name, why, score);
+      list.append(item);
+    }
+  }
+
+  const teams = getConfig().teams || {};
+  const blueTeam = document.getElementById('draft-blue-team');
+  const redTeam = document.getElementById('draft-red-team');
+  if (blueTeam) blueTeam.textContent = teams.blue?.name || 'BLUE';
+  if (redTeam) redTeam.textContent = teams.red?.name || 'RED';
+}
+
+function signedDraft(value) {
+  const numeric = Math.round(Number(value) || 0);
+  return `${numeric > 0 ? '+' : ''}${numeric}`;
+}
+
+async function saveDraftConfig() {
+  if (!slug || !ownerKey) return;
+  const draft = readDraftConfig();
+  const config = getConfig();
+  config.draft = draft;
+  setConfig(config);
+  const response = await Kit.pushAux(slug, 'draft', draft, ownerKey);
+  if (!response.ok) {
+    status.textContent = `Layar draft gagal disimpan: ${response.error || response.status}`;
+    return;
+  }
+  status.textContent = 'Layar draft tersimpan di server profil.';
+}
+
+async function loadDraftMatrix() {
+  const note = document.getElementById('draft-source-note');
+  try {
+    const response = await fetch('/assets/hero-matrix.json', { cache: 'force-cache' });
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    draftMatrix = await response.json();
+    if (note) {
+      // Sumber data ditampilkan, bukan disembunyikan: advantage ini bukan statistik.
+      note.textContent = `Matriks: ${draftMatrix.source} · ${draftMatrix.patch} — indeks heuristik, bukan statistik pertandingan.`;
+    }
+  } catch (error) {
+    draftMatrix = null;
+    if (note) note.textContent = 'Matriks gagal dimuat. Advantage dan rekomendasi tidak tersedia.';
+    console.warn('Matriks draft gagal dimuat', error);
+  }
+  if (draftEditor) renderDraftAnalytics(readDraftConfig());
+}
+
+// Slot pick/ban dibangun di sini, bukan di fungsi init sendiri, karena `initAuxEditors`
+// sudah menunggu registry lalu menulis nilai draft dari server tepat setelahnya.
+function attachDraftEditorListeners() {
+  if (!draftEditor) return;
+  document.getElementById('draft-obs-link')?.setAttribute('href', Kit.pageUrl(slug, 'overlay/draft'));
+  document.getElementById('draft-reset')?.addEventListener('click', () => {
+    writeDraftConfig(DraftAnalytics.defaultDraft());
+    saveDraftConfig();
+  });
+  loadDraftMatrix();
+}
+
+// --- Preview semua fase -------------------------------------------------------
+// Tiap overlay punya scene OBS sendiri. iframe memakai URL yang persis sama dengan browser
+// source OBS, jadi kalau angka di preview ini salah, angka di stream juga salah. Yang tidak
+// ditampilkan (control, verify, kalibrasi) tidak masuk preview karena bukan output stream.
+const PREVIEW_PHASES = [
+  { page: 'overlay/gameplay', title: 'Gameplay', tag: 'Scene: Gameplay' },
+  { page: 'overlay/draft', title: 'Draft', tag: 'Scene: Draft' },
+  { page: 'overlay/result', title: 'Hasil akhir', tag: 'Scene: Result' },
+];
+
+function renderPreviewPanel() {
+  const grid = document.getElementById('preview-grid');
+  if (!grid || !slug) return;
+  grid.replaceChildren();
+
+  for (const phase of PREVIEW_PHASES) {
+    const path = Kit.pageUrl(slug, phase.page);
+    const card = document.createElement('div');
+    card.className = 'preview-card';
+
+    const head = document.createElement('div');
+    head.className = 'preview-card-head';
+    const title = document.createElement('span');
+    title.className = 'preview-card-title';
+    title.textContent = phase.title;
+    const tag = document.createElement('span');
+    tag.className = 'preview-card-tag';
+    tag.textContent = phase.tag;
+    head.append(title, tag);
+
+    const frame = document.createElement('div');
+    frame.className = 'preview-frame';
+    const iframe = document.createElement('iframe');
+    iframe.src = path;
+    iframe.title = `Preview ${phase.title}`;
+    // Reload saat operator mengembalikan fokus ke tab control: overlay live dikirim lewat
+    // socket, tapi me-restart preview yang menganggur memastikan state paling baru tampil
+    // tanpa harus menutup dan membuka control panel.
+    iframe.setAttribute('loading', 'lazy');
+    frame.append(iframe);
+
+    const links = document.createElement('div');
+    links.className = 'preview-card-links';
+    const open = document.createElement('a');
+    open.href = path;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    open.textContent = 'Buka penuh';
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'secondary';
+    copy.textContent = 'Salin URL';
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(new URL(path, window.location.origin).href);
+        copy.textContent = 'Tersalin';
+        window.setTimeout(() => { copy.textContent = 'Salin URL'; }, 1400);
+      } catch {
+        copy.textContent = 'Gagal';
+      }
+    });
+    links.append(open, copy);
+
+    card.append(head, frame, links);
+    grid.append(card);
+  }
 }
 
 let registryCache = null;
@@ -253,7 +595,19 @@ function openAssetPicker(category, onPick) {
   const paint = (filter = '') => {
     grid.replaceChildren();
     const keyword = filter.trim().toLowerCase();
-    for (const asset of group?.items || []) {
+    const items = group?.items || [];
+    // An empty dialog with no explanation was indistinguishable from "no heroes match", and
+    // the only way out was a click outside.
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'preview-hint';
+      empty.textContent = group
+        ? 'Tidak ada aset yang cocok. Hapus kata kunci pencarian.'
+        : `Kategori "${category}" belum termuat. Registry aset gagal dimuat — jalankan npm run build:cloudflare lalu muat ulang halaman.`;
+      grid.append(empty);
+      return;
+    }
+    for (const asset of items) {
       if (keyword && !asset.name.toLowerCase().includes(keyword)) continue;
       const button = document.createElement('button');
       button.type = 'button';
@@ -269,17 +623,31 @@ function openAssetPicker(category, onPick) {
       });
       grid.append(button);
     }
+    if (!grid.children.length) {
+      const empty = document.createElement('p');
+      empty.className = 'preview-hint';
+      empty.textContent = `Tidak ada aset yang cocok dengan "${filter.trim()}".`;
+      grid.append(empty);
+    }
   };
 
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'asset-picker-close';
+  closeButton.textContent = 'Tutup';
+  closeButton.addEventListener('click', close);
+
   search.addEventListener('input', () => paint(search.value));
-  dialog.append(search, grid);
+  search.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
+  dialog.append(search, grid, closeButton);
   document.body.append(dialog);
   paint();
   search.focus();
 }
 
 function renderPlayersEditor() {
-  const players = readPlayersConfig();
+  if (!playersState) playersState = readPlayersConfig();
+  const players = playersState;
   [['blue', 'players-blue'], ['red', 'players-red']].forEach(([side, containerId]) => {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -291,9 +659,11 @@ function renderPlayersEditor() {
       row.dataset.slot = String(index);
 
       const hero = document.createElement('img');
-      hero.src = player.heroImage || '/assets/heroes/aamon.png';
+      // No fallback image: an empty hero slot must not advertise Aamon to the operator.
+      if (player.heroImage) hero.src = player.heroImage;
       hero.alt = player.hero || 'Pilih hero';
       hero.title = 'Klik untuk ganti hero';
+      if (!player.heroImage) hero.classList.add('is-empty');
       hero.addEventListener('click', () => openAssetPicker('heroes', (asset) => {
         player.hero = asset.name;
         player.heroImage = asset.path;
@@ -322,11 +692,12 @@ function renderPlayersEditor() {
         savePlayersConfig();
       });
 
-      const stat = (key, title) => {
+      const stat = (key, title, max = 99, step = 1) => {
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '0';
-        input.max = '99';
+        input.max = String(max);
+        if (step !== 1) input.step = String(step);
         input.value = String(player[key] || 0);
         input.title = title;
         input.addEventListener('change', () => {
@@ -336,12 +707,51 @@ function renderPlayersEditor() {
         return input;
       };
 
+      // Layar hasil (Fase 3) membaca rating/gold/gpm/damage/damagePct/turretDamage/
+      // battleSpell/emblem dari roster yang sama. Tanpa baris ini semua angka itu nol dan
+      // kartu MVP tampil kosong.
+      const detail = document.createElement('div');
+      detail.className = 'player-detail';
+      const labelled = (label, control) => {
+        const wrap = document.createElement('label');
+        wrap.className = 'player-field';
+        const caption = document.createElement('span');
+        caption.textContent = label;
+        wrap.append(caption, control);
+        return wrap;
+      };
+      const freeText = (key, label, placeholder, maxLength) => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = player[key] || '';
+        input.placeholder = placeholder;
+        input.maxLength = maxLength;
+        input.addEventListener('change', () => {
+          player[key] = input.value;
+          savePlayersConfig();
+        });
+        return labelled(label, input);
+      };
+
+      detail.append(
+        labelled('PTS', stat('rating', 'Rating / PTS', 100, 0.1)),
+        labelled('Gold', stat('gold', 'Total gold', 9_999_999)),
+        labelled('GPM', stat('gpm', 'Gold per menit', 9_999)),
+        labelled('Damage', stat('damage', 'Total damage', 9_999_999)),
+        labelled('DMG %', stat('damagePct', 'Persentase damage tim', 100)),
+        labelled('Turret', stat('turretDamage', 'Damage ke turret', 9_999_999)),
+        freeText('battleSpell', 'Spell', 'mis. Floryn', 48),
+        freeText('emblem', 'Emblem', 'mis. Elixir 2', 96),
+      );
+
       const items = document.createElement('div');
       items.className = 'player-items';
       for (let slot = 0; slot < 6; slot += 1) {
         const path = player.items[slot];
         const cell = document.createElement('img');
-        cell.src = path || '';
+        // src="" resolves to the document URL and renders a broken-image glyph, so an empty
+        // slot gets no src attribute at all and is dimmed instead.
+        if (path) cell.src = path;
         cell.alt = path ? `Item ${slot + 1}` : `Slot item ${slot + 1} kosong`;
         cell.title = 'Klik untuk pilih item';
         if (!path) cell.style.opacity = '0.35';
@@ -354,7 +764,10 @@ function renderPlayersEditor() {
       }
 
       row.append(hero, name, level, stat('kills', 'Kill'), stat('deaths', 'Mati'), stat('assists', 'Assist'), items);
-      container.append(row);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'player-block';
+      wrapper.append(row, detail);
+      container.append(wrapper);
     });
   });
 }
@@ -364,18 +777,32 @@ async function initAuxEditors() {
   const config = getConfig();
   writeResultConfig(config.result);
   renderPlayersEditor();
+  renderPreviewPanel();
   if (!slug) {
+    buildDraftSlotSelects();
+    attachDraftEditorListeners();
     const note = document.getElementById('players-note');
     if (note) note.textContent = 'Mode lokal: data tetap di browser dan dikirim lewat live socket.';
     return;
   }
-  const [result, players] = await Promise.all([Kit.fetchAux(slug, 'result'), Kit.fetchAux(slug, 'players')]);
+  const [result, players, draft] = await Promise.all([
+    Kit.fetchAux(slug, 'result'),
+    Kit.fetchAux(slug, 'players'),
+    Kit.fetchAux(slug, 'draft'),
+  ]);
   const next = getConfig();
   if (result.ok) next.result = result.value;
   if (players.ok) next.players = players.value;
+  if (draft.ok) next.draft = draft.value;
   setConfig(next);
   writeResultConfig(next.result);
+  playersState = readPlayersConfig();
   renderPlayersEditor();
+  writeDraftConfig(next.draft);
+  // The draft selects only become interactive here, after the server copy has been applied.
+  // Building them before the fetch above let an operator pick be overwritten by the fetch.
+  buildDraftSlotSelects();
+  attachDraftEditorListeners();
 }
 
 // Field Lock berlaku per field, bukan per objective. Satu daftar ini dipakai untuk tabel
@@ -600,8 +1027,23 @@ const liveSocket = window.LiveSocket.create({
   },
 });
 
+// A truncated or hand-edited value used to throw straight out of getConfig(), which is
+// called from ~20 places starting at top level. One bad byte then left the page with no
+// listeners registered at all. Fall back to defaults and keep going.
+function readStoredConfig() {
+  const raw = localStorage.getItem(configKey);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    console.warn('Konfigurasi rusak di localStorage, memakai default.', error);
+    return null;
+  }
+}
+
 function getConfig() {
-  const saved = JSON.parse(localStorage.getItem(configKey) || 'null');
+  const saved = readStoredConfig();
   const config = {
     ...defaultConfig,
     ...saved,
@@ -627,7 +1069,22 @@ function getConfig() {
 }
 
 function setConfig(config) {
-  localStorage.setItem(configKey, JSON.stringify(config));
+  // The header PNG plus custom images are base64 in this one key, so the ~5 MB per-origin
+  // budget is reachable. Without a catch, QuotaExceededError was thrown inside the click
+  // handler: the preview and the push never ran, no status was written, and the edit was
+  // lost with the button looking dead.
+  try {
+    localStorage.setItem(configKey, JSON.stringify(config));
+    return true;
+  } catch (error) {
+    const overQuota = error?.name === 'QuotaExceededError' || error?.code === 22;
+    if (overQuota) {
+      status.textContent = 'Penyimpanan browser penuh. Hapus gambar custom atau klik "Reset Default", lalu ulangi. Perubahan ini belum tersimpan.';
+    } else {
+      status.textContent = `Gagal menyimpan ke browser: ${error?.message || error}. Perubahan ini belum tersimpan.`;
+    }
+    return false;
+  }
 }
 
 function collectLiveAssets(config) {
@@ -663,8 +1120,15 @@ function assetsSignature(config) {
   return JSON.stringify(collectLiveAssets(config));
 }
 
+// A rejected write is never retried, so it must never be reported as "queued and will be
+// sent automatically" — that combination told the operator their change was safe when the
+// server had permanently dropped it.
+const REJECTED_MESSAGE = 'Perubahan ditolak: ownerKey tidak cocok atau profil belum diklaim. Buka beranda untuk mengklaim profil ini, lalu muat ulang halaman ini — socket yang sudah terbuka tidak bisa di-upgrade di tempat.';
+
 function describeLiveResult(result, sentText, queuedText) {
-  return result === 'sent' ? sentText : queuedText;
+  if (result === 'sent') return sentText;
+  if (result === 'rejected') return REJECTED_MESSAGE;
+  return queuedText;
 }
 
 function pushLiveAssets(config, force = false) {
@@ -694,7 +1158,7 @@ function pushLiveConfig(config) {
   if (result === 'sent' && assetResult === 'queued') result = 'queued';
 
   if (result === 'rejected') {
-    status.textContent = 'Perubahan ditolak: ownerKey tidak cocok atau profil belum diklaim. Buka beranda untuk mengklaim profil ini.';
+    status.textContent = REJECTED_MESSAGE;
     return result;
   }
 
@@ -1152,8 +1616,11 @@ function removeCustomItem(editor) {
 
 saveButton.addEventListener('click', () => {
   const config = readFormValues();
-  setConfig(config);
+  const stored = setConfig(config);
   renderPreview(config);
+  formDirty = false;
+  staleNoticeShown = false;
+  if (!stored) return;
   status.textContent = describeLiveResult(
     pushLiveConfig(config),
     'Pengaturan dan PNG header tersimpan serta dikirim ke gameplay.',
@@ -1163,8 +1630,11 @@ saveButton.addEventListener('click', () => {
 
 applyButton.addEventListener('click', () => {
   const config = readFormValues();
-  setConfig(config);
+  const stored = setConfig(config);
   renderPreview(config);
+  formDirty = false;
+  staleNoticeShown = false;
+  if (!stored) return;
   status.textContent = describeLiveResult(
     pushLiveConfig(config),
     'Update live terkirim ke overlay.',
@@ -1335,8 +1805,16 @@ bo2Editor?.addEventListener('click', (event) => {
 });
 
 resultEditor?.addEventListener('change', (event) => {
-  if (!event.target.matches('#result-visible, input[id^="result-"]')) return;
+  // The mode picker is a <select>; matching input[id^="result-"] alone skipped it entirely.
+  if (!event.target.matches('#result-visible, input[id^="result-"], select[id^="result-"]')) return;
   saveResultConfig();
+});
+
+// Slot pick/ban dan toggle draft langsung disimpan, sama seperti editor hasil: operator
+// tidak boleh perlu menekan "Simpan Pengaturan" yang juga mengirim config gameplay.
+draftEditor?.addEventListener('change', (event) => {
+  if (!event.target.matches('select, #draft-visible, #draft-round-input, #draft-active-side')) return;
+  saveDraftConfig();
 });
 bo2Enabled?.addEventListener('change', () => {
   const config = readFormValues();
@@ -1357,7 +1835,10 @@ bo2Reset?.addEventListener('click', () => {
   status.textContent = 'Seri BO2 dikosongkan.';
 });
 
-form.addEventListener('input', () => renderPreview(readFormValues()));
+form.addEventListener('input', () => {
+  formDirty = true;
+  renderPreview(readFormValues());
+});
 headerWidthSlider.addEventListener('input', () => {
   form.elements.headerWidth.value = headerWidthSlider.value;
   renderPreview(readFormValues());
@@ -1419,8 +1900,29 @@ headerImageInput.addEventListener('change', () => {
 
 window.addEventListener('beforeunload', () => liveSocket.stop());
 
+// Set while the operator has unsaved edits or is typing into the form. The OCR page writes
+// this same localStorage key roughly once a second while live OCR runs, and repainting the
+// whole form on each write reverted every character typed after it.
+let formDirty = false;
+let staleNoticeShown = false;
+
+function focusInsideForm() {
+  const active = document.activeElement;
+  return Boolean(active && form && form.contains(active) && active !== document.body);
+}
+
+function markStaleState() {
+  if (staleNoticeShown) return;
+  staleNoticeShown = true;
+  status.textContent = 'State di server berubah (mis. dari halaman OCR). Form tidak ditimpa selama kamu masih mengetik — tekan "Simpan Pengaturan" untuk memakai nilai di layar.';
+}
+
 window.addEventListener('storage', (event) => {
   if (event.key !== configKey) return;
+  if (formDirty || focusInsideForm()) {
+    markStaleState();
+    return;
+  }
   const config = getConfig();
   populateForm(config);
   renderPreview(config);

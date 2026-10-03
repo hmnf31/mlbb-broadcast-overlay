@@ -287,7 +287,10 @@ function parseRecognizedValue(key, rawText) {
   return window.OcrParse.parseRecognizedValue(key, rawText);
 }
 
-async function connectAndSend(matchUpdate) {
+async function connectAndSend(rawUpdate) {
+  // Anchor timer ikut di setiap jalur kirim (readings, socket, fallback) supaya tidak ada
+  // jalur yang menganchor ulang dan membuat angka timer melompat.
+  const matchUpdate = withTimerAnchor(rawUpdate);
   if (slug) {
     const result = await Kit.pushOcrReadings(slug, matchUpdate, ocrGuard.anchor(), ownerKey);
     if (result.ok) {
@@ -327,6 +330,28 @@ async function createOcrWorker() {
   });
 }
 
+// Tracker timer hidup terpisah dari ocrGuard: ocrGuard menilai tiap bacaan secara
+// independen, sedangkan timer harus ingat anchor-nya antar siklus. Dipisah supaya aturan
+// 3 detik / grace 10 detik bisa diuji tanpa browser.
+let timerTracker = window.OcrTimer?.createTracker() ?? null;
+
+// Kembalikan keputusan untuk satu field. Timer lewat OcrTimer; sisanya lewat ocrGuard.
+function decideField(key, sample) {
+  if (key === 'timer' && timerTracker) {
+    const outcome = timerTracker.observe(sample.value, sample.at);
+    return {
+      accepted: outcome.action !== 'ignore' || outcome.reason === 'unchanged',
+      value: outcome.value,
+      reason: outcome.reason,
+      reasonText: window.OcrTimer.REASON_TEXT[outcome.reason] || outcome.reason,
+      // `ignore` = bacaan ditolak sementara dan angka overlay ditahan.
+      pending: outcome.reason === 'pending',
+      outcome,
+    };
+  }
+  return ocrGuard.decide(key, sample);
+}
+
 async function readAllRois(worker) {
   const updates = {};
   for (const key of getActiveFields()) {
@@ -338,7 +363,7 @@ async function readAllRois(worker) {
     const rawText = result.data.text.trim();
     const value = parseRecognizedValue(key, rawText);
     const confidence = Number(result.data.confidence) || 0;
-    const decision = ocrGuard.decide(key, { value, rawText, confidence, at: Date.now() });
+    const decision = decideField(key, { value, rawText, confidence, at: Date.now() });
 
     let resultCard = document.getElementById(`result-${key}`);
     if (!resultCard) {
@@ -380,6 +405,21 @@ function persistOcrResult(updates) {
     anchor: ocrGuard.anchor(),
   };
   localStorage.setItem(configKey, JSON.stringify(savedConfig));
+}
+
+// Selalu lampirkan anchor timer ke kiriman. Tanpa `timerAt` dan `timerRunning`, worker akan
+// menganchor ulang sendiri tiap kiriman dan angka timer di overlay melompat maju-mundur
+// setiap detik.
+function withTimerAnchor(updates) {
+  if (!timerTracker || updates.timer === undefined) return updates;
+  const snapshot = timerTracker.state();
+  if (snapshot.seconds === null) return updates;
+  return {
+    ...updates,
+    timer: snapshot.seconds,
+    timerAt: snapshot.anchorAt,
+    timerRunning: snapshot.running,
+  };
 }
 
 async function runOcr() {

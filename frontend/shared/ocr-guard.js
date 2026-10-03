@@ -136,6 +136,27 @@
         return finish(false, 'confidence', { threshold });
       }
 
+      if (rule.kind === 'timer') {
+        // Timer GALAT memakai aturan monoton di bawah. Aturan itu menganggap angka turun
+        // sebagai salah baca, padahal timer MLBB memang hitung mundur dan berubah tiap
+        // detik: setiap bacaan valid akan ditolak sebagai 'dropped'.
+        //
+        // Jadi untuk timer guard ini hanya menjaga bentuk, rentang, dan confidence.
+        // Keputusan apakah angka diterima, ditunggu, atau dianggap pause milik
+        // OcrTimer, yang menganchor satu bacaan lalu menghitung sendiri -- satu-satunya
+        // cara supaya angka timer di layar tidak berkedip.
+        if (state.values.timer === undefined) {
+          state.values.timer = value;
+          state.samples.timer = [value];
+          state.lastAt = { ...(state.lastAt || {}), timer: at };
+          return finish(true, 'accepted');
+        }
+        if (value === state.values.timer) return finish(true, 'same');
+        state.values.timer = value;
+        state.lastAt = { ...(state.lastAt || {}), timer: at };
+        return finish(true, 'accepted');
+      }
+
       if (previous !== undefined) {
         if (value === previous) {
           state.lastAt = { ...(state.lastAt || {}), [field]: at };

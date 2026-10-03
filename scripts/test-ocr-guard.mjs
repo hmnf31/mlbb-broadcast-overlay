@@ -65,13 +65,28 @@ section('Gold: monoton dengan batas per detik');
   check('bacaan "awal 10" ditolak karena turun', !guard.decide('blueGold', reading(10, { at: 1_061_000 })).accepted);
 }
 
-section('Timer');
+section('Timer: guard hanya menjaga bentuk dan rentang');
 {
+  // Timer MLBB hitung MUNDUR. Guard lama memakai aturan monoton yang menganggap penurunan
+  // sebagai salah baca, jadi setiap bacaan countdown yang valid ditolak sebagai 'dropped'.
+  // Karena itu keputusan temporal timer pindah ke OcrTimer (scripts/test-ocr-timer.mjs) dan
+  // guard hanya menyisakan pemeriksaan yang tidak bergantung waktu.
   const guard = freshGuard();
-  guard.decide('timer', reading(600));
-  check('timer naik 1 detik diterima', guard.decide('timer', reading(601, { at: 1_002_000 })).accepted);
-  check('timer drop 3 detik ditolak', !guard.decide('timer', reading(598, { at: 1_004_000 })).accepted);
-  check('timer di atas 3600 ditolak', !guard.decide('timer', reading(7200, { at: 1_100_000 })).accepted);
+  check('bacaan pertama diterima', guard.decide('timer', reading(600)).accepted);
+  check('hitung mundur 2 detik diterima', guard.decide('timer', reading(598, { at: 1_002_000 })).accepted);
+  check('nilai timer tersimpan', guard.values().timer === 598, String(guard.values().timer));
+  check('bacaan turun jauh juga diterima guard', guard.decide('timer', reading(120, { at: 1_004_000 })).accepted);
+  check('nilai terbaru tersimpan', guard.values().timer === 120, String(guard.values().timer));
+
+  // Batas yang memang masih milik guard:
+  const range = freshGuard();
+  check('di atas 3600 ditolak', !range.decide('timer', reading(7200)).accepted);
+  check('alasan penolakan adalah rentang', range.decide('timer', reading(7200)).reason === 'range');
+  check('nilai ditolak tidak menimpa nilai tampil', range.values().timer === undefined, String(range.values().timer));
+  check('nilai negatif ditolak', !range.decide('timer', reading(-5)).accepted);
+  check('pecahan ditolak', !range.decide('timer', reading(10.5)).accepted);
+  check('confidence rendah ditolak', !range.decide('timer', reading(300, { confidence: 10 })).accepted);
+  check('nilai 0 itu sah dan diterima', range.decide('timer', reading(0)).accepted);
 }
 
 section('Objective: turtle/lord/tower');

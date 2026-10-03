@@ -120,7 +120,9 @@
       .bo2-toolbar h2 { margin: 0 auto 0 0; font-size: 1.1rem; }
       .bo2-toolbar label { flex-direction: row; align-items: center; gap: 8px; }
       .bo2-rows { display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 10px; }
-      .bo2-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); }
+      .bo2-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.04); flex-wrap: wrap; }
+      .bo2-bestof { flex-direction: row; align-items: center; gap: 8px; }
+      .bo2-bestof input { width: 72px; }
       .bo2-row > span:first-child { width: 78px; color: #b7c7d8; font-size: .82rem; }
       .bo2-dot { width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 2px solid #8a8f98; background: transparent; }
       .bo2-dot[data-state='win'] { background: #e5484d; border-color: #e5484d; }
@@ -285,23 +287,18 @@
 
         <section class="bo2-editor" id="bo2-editor">
           <div class="bo2-toolbar">
-            <h2>Seri BO2</h2>
-            <label><input type="checkbox" id="bo2-enabled" /> Tampilkan indikator BO2</label>
+            <h2><span id="bo2-title">Seri BO2</span></h2>
+            <label class="bo2-bestof">Best of
+              <input type="number" id="bo2-bestof-input" min="2" max="9" step="1" />
+            </label>
+            <label><input type="checkbox" id="bo2-enabled" /> Tampilkan indikator seri</label>
             <button type="button" class="secondary" id="bo2-reset">Reset seri</button>
           </div>
-          <div class="bo2-rows">
-            <div class="bo2-row" data-team="blue">
-              <span>Blue</span>
-              <button type="button" class="bo2-dot" data-game="0" title="Game 1"></button>
-              <button type="button" class="bo2-dot" data-game="1" title="Game 2"></button>
-            </div>
-            <div class="bo2-row" data-team="red">
-              <span>Red</span>
-              <button type="button" class="bo2-dot" data-game="0" title="Game 1"></button>
-              <button type="button" class="bo2-dot" data-game="1" title="Game 2"></button>
-            </div>
+          <div class="bo2-rows" id="bo2-rows">
+            <!-- Titik game dibuat oleh JS dari nilai Best of. Versi lama menaruh dua titik
+                 hardcoded per tim, jadi BO3 dan seterusnya tidak punya tempat untuk ditandai. -->
           </div>
-          <p class="preview-hint">Klik titik untuk menandai tim yang menang di game itu. Klik lagi titik yang sama untuk mengosongkan.</p>
+          <p class="preview-hint">Klik titik untuk menandai tim yang menang di game itu. Klik lagi titik yang sama untuk mengosongkan. Seri selesai saat satu tim menang <span id="bo2-wins-needed">1</span> dari <span id="bo2-game-count">2</span> game.</p>
         </section>
 
         <section class="bo2-editor" id="ocr-editor">

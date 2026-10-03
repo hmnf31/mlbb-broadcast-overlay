@@ -160,6 +160,43 @@ function formatTimer(totalSeconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+// Timer dihitung LOKAL dari anchor, bukan diteruskan apa adanya dari server.
+//
+// `match.timer` adalah nilai pada detik `match.timerAt` (epoch ms). Kalau `timerRunning`
+// true, overlay mengurangi selisih waktu sendiri, jadi server tidak perlu push apa pun per
+// detik dan angka di layar tidak pernah berkedip karena hasil OCR yang datang terlambat atau
+// salah baca. Tanpa anchor (state lama, atau timer yang masih 0) angka dipakai apa adanya.
+function timerSeconds(match, now = Date.now()) {
+  const base = Number(match?.timer) || 0;
+  const anchorAt = Number(match?.timerAt);
+  if (match?.timerRunning !== true || !Number.isFinite(anchorAt) || anchorAt <= 0) return base;
+  const elapsed = Math.floor(Math.max(0, now - anchorAt) / 1000);
+  return Math.max(0, base - elapsed);
+}
+
+function renderTimer(match) {
+  ui.matchTimer.textContent = formatTimer(timerSeconds(match));
+}
+
+// Timer harus dihitung ulang tiap detik walau tidak ada snapshot yang masuk. Tanpa ini angka
+// hanya berkurang saat ada kiriman state, jadi satu push anchor akan membekukan timer di layar.
+//
+// `configState` sendiri adalah variabel lokal di dalam render(), jadi denyut tidak bisa
+// membacanya; `timerSource` menyimpan objek match terakhir yang sudah digabung supaya ticker
+// selalu punya sumber tanpa perlu masuk ke logic render lagi.
+let timerTicker = null;
+let timerSource = null;
+
+function ensureTimerTicker() {
+  if (timerTicker) return;
+  timerTicker = setInterval(() => {
+    if (timerSource) renderTimer(timerSource);
+  }, 1000);
+  // Di browser ini angka biasa; di Node (harness test yang memuat app.js ini) `unref`
+  // mencegah interval ini menahan proses dari keluar.
+  timerTicker?.unref?.();
+}
+
 function formatGold(value) {
   return `${(countOf(value) / 1000).toFixed(1)}K`;
 }
@@ -396,7 +433,8 @@ function render(config, stateOverride = null) {
   setImageSource(ui.redLogo, configState.redTeam.logo);
 
   const match = configState.match;
-  ui.matchTimer.textContent = formatTimer(Number(match.timer) || 0);
+  timerSource = match;
+  renderTimer(match);
   ui.blueKills.textContent = countOf(match.blueKills);
   ui.redKills.textContent = countOf(match.redKills);
   ui.blueGold.textContent = formatGold(countOf(match.blueGold));
@@ -487,12 +525,18 @@ function renderPlayers(players) {
 
 function renderBo2(match) {
   const bo2 = match?.bo2 || {};
-  const games = (Array.isArray(bo2.games) ? bo2.games : []).slice(0, 2);
+  // Panjang game sekarang datang dari bestOf, jadi tidak boleh dipotong ke 2. BO3/BO4/BO5
+  // akan kehilangan game kalau masih di-slice.
+  const games = Array.isArray(bo2.games) ? bo2.games : [];
   const enabled = bo2.enabled === true && games.length > 0;
   const winsOf = (team) => games.filter((game) => game?.winner === team).length;
   const blueWins = winsOf('blue');
   const redWins = winsOf('red');
   const pending = games.filter((game) => !game?.winner).length;
+  // Seri selesai di ceil(n/2) win: BO2 di 1, BO3/BO4 di 2, BO5/BO6 di 3. Versi lama memakai
+  // `teamWins >= games.length` yang hanya kebetulan benar untuk BO2 dan tidak pernah
+  // tercapai di BO3, jadi badge "seri selesai" tidak pernah muncul.
+  const winsNeeded = Math.ceil(games.length / 2);
 
   // Titik tidak pernah menyimpan statusnya sendiri: bentuknya diturunkan dari `games[i].winner`
   // supaya tidak mungkin dua tim sama-sama merah untuk game yang sama.
@@ -504,16 +548,23 @@ function renderBo2(match) {
     if (!enabled) continue;
 
     element.replaceChildren();
-    const teamDone = teamWins >= games.length;
+    const teamDone = teamWins >= winsNeeded;
+
+    // Match point hanya untuk SATU game: game berikutnya yang benar-benar akan dimainkan.
+    // Versi lama menandai setiap slot kosong yang tersisa, jadi di BO3 dengan blue 1-0
+    // game 2 DAN game 3 sama-sama terlihat seperti match point padahal game 3 belum bisa
+    // menjadi penentu sebelum game 2 selesai.
+    const atMatchPoint = !teamDone && teamWins === winsNeeded - 1 && pending > 0;
+    let matchpointMarked = false;
 
     games.forEach((game) => {
       const dot = document.createElement('span');
       dot.className = 'bo2-dot';
       const winner = game?.winner ?? null;
       dot.dataset.state = winner === null ? 'pending' : winner === team ? 'win' : 'lose';
-      // Match point: tinggal satu game lagi, dan game itu belum ada pemiliknya.
-      if (winner === null && !teamDone && teamWins >= games.length - 1 && pending > 0) {
+      if (atMatchPoint && winner === null && !matchpointMarked) {
         dot.dataset.matchpoint = '1';
+        matchpointMarked = true;
       }
       element.append(dot);
     });
@@ -581,6 +632,9 @@ const config = getConfig();
 applyDesignScale();
 render(config);
 applyRoster(config.players || null);
+// Mulai denyut hanya setelah render pertama, supaya angka tidak melompat jadi 00:00 sebelum ada
+// snapshot yang benar.
+ensureTimerTicker();
 enablePositionEditor();
 // Assets arriving after a snapshot must not wipe it: pass lastSnapshot through so a slow
 // first fetch cannot re-render the overlay with stale default values.

@@ -80,10 +80,23 @@ function mergeState(state) {
 // BO2 menyimpan satu sumber kebenaran: `games[i].winner`. titik tiap tim DITURUNKAN dari
 // sini. Kalau blue dan red punya hitungan terpisah, state bisa jadi kontradiktif (dua tim
 // sama-sama merah untuk game yang sama) dan tidak ada yang mengoreksinya.
+// Best-of tidak lagi dikunci di 2. Operator memilih BO2, BO3, BO4, dan seterusnya;
+// jumlah game dan logika match point diturunkan dari bestOf, bukan dari angka tetap 2
+// yang tersebar di worker, control, dan overlay. Rentang 2..9: di bawah 2 bukan seri,
+// di atas 9 titik overlay tidak terbaca lagi dan tidak pernah dipakai.
+const BO_MIN = 2;
+const BO_MAX = 9;
+
+function normalizeBestOf(value) {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) return BO_MIN;
+  return Math.max(BO_MIN, Math.min(BO_MAX, numeric));
+}
+
 function defaultBo2State() {
   return {
     enabled: false,
-    bestOf: 2,
+    bestOf: BO_MIN,
     games: [{ winner: null }, { winner: null }],
   };
 }
@@ -91,9 +104,9 @@ function defaultBo2State() {
 function normalizeBo2State(value) {
   const fallback = defaultBo2State();
   if (!isPlainObject(value)) return fallback;
-  // bestOf dikunci di 2: struktur titik dan logika match point di frontend dibangun
-  // untuk dua game. Nilai lain akan di-normalisasi, bukan dipercaya.
-  const bestOf = 2;
+  // `bestOf` dipakai hanya setelah di-clamp di sini; client boleh mengirim angka ngawur
+  // dan angka itu dinormalisasi, bukan dipercaya.
+  const bestOf = normalizeBestOf(value.bestOf ?? fallback.bestOf);
   const games = Array.isArray(value.games) ? value.games : [];
   return {
     enabled: Boolean(value.enabled),
@@ -111,6 +124,11 @@ function defaultMatchState() {
       id: 'match-001',
       status: 'live',
       timer: 0,
+      // Anchor timer untuk tick lokal di overlay. `timer` adalah nilai pada detik `timerAt`,
+      // jadi overlay bisa menghitung sendiri tiap frame tanpa ada push tiap detik dari server.
+      // `timerRunning` false berarti game sedang pause dan angka ditahan.
+      timerAt: null,
+      timerRunning: false,
       series: { best_of: 5, score: { blue: 0, red: 0 } },
       bo2: defaultBo2State(),
       objective: {
@@ -447,11 +465,34 @@ function stripImageSources(state) {
   };
 }
 
+// Timer disimpan sebagai anchor, bukan sebagai angka yang diedit setiap detik: `timer` adalah
+// nilai pada detik `timerAt`, dan overlay menghitung selisihnya sendiri. Ini yang membuat
+// timer bisa berjalan mulus tanpa ada push tiap detik.
+//
+// Kalau client mengirim `timer` tanpa `timerAt` (semua jalur lama dan panel kontrol masih
+// begitu), anchor-nya sengaja diset ke waktu sekarang: angka yang baru dikirim itu adalah
+// "sekarang", dan itulah satu-satunya penafsiran yang tidak membuat timer meloncat.
+function normalizeTimerAnchor(match, incoming) {
+  const timer = Number(match.timer);
+  match.timer = Number.isFinite(timer) ? Math.max(0, Math.round(timer)) : 0;
+  match.timerRunning = match.timerRunning === true;
+  const sentAt = Number(incoming?.timerAt);
+  if (Number.isFinite(sentAt) && sentAt > 0) {
+    match.timerAt = Math.round(sentAt);
+  } else if (incoming?.timer !== undefined) {
+    match.timerAt = Date.now();
+  } else if (!Number.isFinite(Number(match.timerAt))) {
+    match.timerAt = null;
+  }
+  return match;
+}
+
 function applyUpdate(state, assets, payload) {
   const next = stripImageSources(deepMerge(state, payload || {}));
   // Client boleh mengirim games dengan panjang atau winner yang ngawur; apa adanya itu akan
   // diturunkan jadi titik yang salah di overlay.
   next.match.bo2 = normalizeBo2State(next.match.bo2);
+  normalizeTimerAnchor(next.match, payload?.match);
   const presentation = payload?.presentation || {};
   let assetsChanged = false;
 
@@ -969,7 +1010,14 @@ export class ProfileStore extends DurableObject {
       const locked = ocrLockedFields(ocr);
       const readings = {};
       const rejected = [];
-      for (const [field, raw] of Object.entries(isPlainObject(parsed.value.readings) ? parsed.value.readings : {})) {
+      // Anchor timer dikirim DI DALAM objek readings (satu kiriman untuk semua angka), tapi
+      // itu bukan field bacaan: `timerAt` dan `timerRunning` adalah metadata cara menghitung
+      // angka timer. Kalau ikut disaring loop bawah, keduanya masuk daftar `rejected` dan
+      // operator melihat "field terkunci diabaikan" padahal tidak ada yang dikunci.
+      const { timerAt, timerRunning, ...ocrReadings } = isPlainObject(parsed.value.readings)
+        ? parsed.value.readings
+        : {};
+      for (const [field, raw] of Object.entries(ocrReadings)) {
         // Field yang tidak dikenal DITOLAK, bukan di Lewati diam-diam. Versi lama memakai
         // `continue` tanpa mencatat apa pun, jadi bacaan turtle (dan field karangan lain)
         // hilang tanpa jejak: operator melihat `applied: [lordBlue]` dan menyimpulkan
@@ -991,8 +1039,33 @@ export class ProfileStore extends DurableObject {
         readings[field] = value;
       }
 
-      if (Object.keys(readings).length) {
-        await this.persist({ match: readings });
+      // Anchor timer (`timerAt` + `timerRunning`) sengaja DI LUAR `OCR_FIELDS`: itu bukan
+      // bacaan field, melainkan metadata cara menghitung angka timer. Kalau ikut disaring
+      // loop di atas, anchor akan hilang, worker menganchor ulang `timer` ke waktu receipt
+      // tiap kiriman, dan angka timer di overlay melompat maju-mundur setiap beberapa detik --
+      // persis masalah yang OcrTimer dibuatkan untuk dihilangkan.
+      //
+      // Field Lock tetap berlaku: kalau `timer` terkunci, anchor pun tidak boleh ikut berubah,
+      // karena anchor tanpa nilai yang diizinkan akan menggeser angka yang dikunci operator.
+      const anchorPatch = readings.timer !== undefined
+        ? normalizeTimerAnchor({ timer: readings.timer }, { timerAt, timerRunning })
+        : null;
+
+      // Satu persist untuk angka dan anchor sekaligus: dua persist berarti dua kali tulis
+      // storage dan dua kali siar, dan client kedua bisa sempat melihat angka tanpa anchor.
+      const patch = Object.keys(readings).length ? { match: readings } : null;
+      if (anchorPatch) {
+        await this.persist({
+          match: {
+            ...(patch?.match || {}),
+            timer: anchorPatch.timer,
+            timerAt: anchorPatch.timerAt,
+            timerRunning: anchorPatch.timerRunning,
+          },
+        });
+        await this.touch();
+      } else if (patch) {
+        await this.persist(patch);
         await this.touch();
       }
 
@@ -1126,10 +1199,10 @@ const GENERIC_AUX_KINDS = ['result', 'players', 'draft'];
       nextState = result.state;
       nextAssets = result.assets;
       assetsChanged = result.assetsChanged;
-    } else if (envelope?.type === 'command' && envelope.command === 'set_timer') {
-      nextState.match.timer = Math.max(0, Number(envelope.value) || 0);
-    } else if (envelope?.type === 'command' && envelope.command === 'tick_timer') {
-      nextState.match.timer = Math.max(0, (Number(state.match.timer) || 0) + (Number(envelope.value) || 1));
+    // `set_timer` dan `tick_timer` dihapus. Keduanya mendorong timer sebagai angka mentah tiap
+// detik, persis model yang membuat angka timer berkedip di overlay dan menghasilkan satu push
+// per detik. Timer sekarang di-anchor lewat `normalizeTimerAnchor` di applyUpdate, jadi
+// menambah/mengurangi satu detik tidak lagi berarti menulis ulang angka anchor.
     } else if (envelope?.type === 'command' && envelope.command === 'reset') {
       nextState = stripImageSources(structuredClone(defaultMatchState()));
       nextAssets = normalizeAssets(null);

@@ -42,6 +42,12 @@ function stubSocket(window, sink) {
   };
 }
 
+// Jendela jsdom yang sudah di-boot. Halaman overlay punya timer sendiri (denyut timer
+// gameplay menghitung ulang tiap detik) dan WebSocket yg disambungkan ulang, jadi semua
+// jendela harus ditutup sebelum proses boleh keluar. Tanpa ini suite ini tidak akan pernah
+// selesai, karena tidak ada satu pun aplikasi yang menutup interval-nya sendiri.
+const openWindows = [];
+
 function boot(pageDir, url) {
   return Promise.all([
     readFile(`${ROOT}/frontend/${pageDir}/index.html`, 'utf8'),
@@ -50,6 +56,7 @@ function boot(pageDir, url) {
   ]).then(([html, appSource, profileSource]) => {
     const dom = new JSDOM(html, { url, runScripts: 'outside-only', pretendToBeVisual: true });
     const { window } = dom;
+    openWindows.push(window);
     const errors = [];
     window.eval(profileSource);
     const sockets = [];
@@ -105,6 +112,12 @@ async function main() {
   // queue drain before asserting on the DOM.
   const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+// "mm:ss" -> detik, supaya assertion timer bisa mentoleransi satu tick tanpa jadi ambigu.
+const toSeconds = (text) => {
+  const match = /^(\d+):(\d{2})$/.exec(String(text).trim());
+  return match ? Number(match[1]) * 60 + Number(match[2]) : Number.NaN;
+};
+
   section('Overlay gameplay');
   {
     const { document: gameplay, errors, sockets } = await boot('overlay/gameplay', 'http://127.0.0.1:8787/p/testslug12345/overlay/gameplay/');
@@ -122,17 +135,113 @@ async function main() {
       && gameplay.getElementById('red-kills').textContent === '15',
       `${gameplay.getElementById('blue-kills').textContent}/${gameplay.getElementById('red-kills').textContent}`);
     check('timer dari snapshot', gameplay.getElementById('match-timer').textContent === '22:05', gameplay.getElementById('match-timer').textContent);
+
+    // Tanpa anchor (semua state lama) angka harus DIAM, bukan dikarang mundur sendiri dari
+    // waktu lokal: mengarang mundur akan membuat timer melompat begitu tab baru dibuka.
+    {
+      const before = gameplay.getElementById('match-timer').textContent;
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      check('tanpa anchor timer tetap diam', before === '22:05' && gameplay.getElementById('match-timer').textContent === '22:05', gameplay.getElementById('match-timer').textContent);
+      check('denyut timer tidak melempar error', errors.length === 0, errors.slice(0, 2).join(' | '));
+    }
+
+    // Anchor: overlay mengurangi selisih anchorAt sendiri, dan respects timerRunning.
+    {
+      const anchorAt = Date.now();
+      sockets[0].onMessage({
+        type: 'snapshot',
+        payload: { ...BO2_SNAPSHOT, match: { ...BO2_SNAPSHOT.match, timer: 300, timerAt: anchorAt, timerRunning: true } },
+      });
+      await settle();
+      check('anchor dipakai langsung', gameplay.getElementById('match-timer').textContent === '05:00', gameplay.getElementById('match-timer').textContent);
+
+      // Berjalan lokal: tanpa kiriman baru, angka tetap turun. Inilah yang menghapus
+      // kebutuhan push satu envelope per detik.
+      //
+      // Tidak boleh assert jumlah detik persis: interval dimulai saat app boot sedangkan
+      // anchorAt dibuat di tengah siklus, jadi tick pertama bisa datang hampir satu detik
+      // kemudian. Yang diuji adalah "berjalan dan maju", bukan hitungan tick.
+      await new Promise((resolve) => setTimeout(resolve, 2100));
+      {
+        const shown = toSeconds(gameplay.getElementById('match-timer').textContent);
+        check('denyut menurunkan angka tanpa kiriman baru', shown < 300 && shown >= 297, `300 -> ${shown}`);
+      }
+
+      sockets[0].onMessage({
+        type: 'snapshot',
+        payload: { ...BO2_SNAPSHOT, match: { ...BO2_SNAPSHOT.match, timer: 300, timerAt: anchorAt - 30_000, timerRunning: true } },
+      });
+      await settle();
+      check('selisih anchor ikut dihitung', toSeconds(gameplay.getElementById('match-timer').textContent) <= 270, gameplay.getElementById('match-timer').textContent);
+
+      sockets[0].onMessage({
+        type: 'snapshot',
+        payload: { ...BO2_SNAPSHOT, match: { ...BO2_SNAPSHOT.match, timer: 300, timerAt: anchorAt - 600_000, timerRunning: false } },
+      });
+      await settle();
+      check('timerRunning false menahan angka', gameplay.getElementById('match-timer').textContent === '05:00', gameplay.getElementById('match-timer').textContent);
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+      check('angka tetap beku saat pause', gameplay.getElementById('match-timer').textContent === '05:00', gameplay.getElementById('match-timer').textContent);
+
+      // Kembalikan ke snapshot semula supaya assertion lain tidak terpengaruh.
+      sockets[0].onMessage({ type: 'snapshot', payload: BO2_SNAPSHOT });
+      await settle();
+      check('kembali ke timer snapshot', gameplay.getElementById('match-timer').textContent === '22:05', gameplay.getElementById('match-timer').textContent);
+    }
     check('gold diff +3.4K', gameplay.getElementById('gold-diff').textContent === '+3.4K', gameplay.getElementById('gold-diff').textContent);
     check('nama tim dari snapshot', gameplay.getElementById('blue-name').textContent === 'Blue Phoenix');
 
     const blueBo2 = gameplay.getElementById('bo2-blue');
     const redBo2 = gameplay.getElementById('bo2-red');
-    check('baris BO2 tampil', blueBo2.hidden === false && redBo2.hidden === false);
+    check('baris seri tampil', blueBo2.hidden === false && redBo2.hidden === false);
     const blueDots = [...blueBo2.querySelectorAll('.bo2-dot')];
     check('blue menang game 1', blueDots[0]?.dataset.state === 'win', blueDots[0]?.dataset.state);
-    check('blue masih match point', blueDots[1]?.dataset.state === 'pending' && blueDots[1]?.dataset.matchpoint === '1');
+    // BO2 selesai di 1 win, jadi begitu blue menang game 1 serinya sudah diputuskan: game 2
+    // BUKAN match point. Versi lama memakai `teamWins >= games.length - 1` sehingga masih
+    // menandai match point di sini, dan `teamDone = teamWins >= games.length` yang tidak
+    // pernah tercapai membuat badge "seri selesai" tidak pernah muncul sama sekali.
+    check('blue BO2 sudah menutup seri, bukan match point',
+      blueDots[1]?.dataset.state === 'pending' && blueDots[1]?.dataset.matchpoint === undefined,
+      blueDots[1]?.dataset.matchpoint);
     const redDots = [...redBo2.querySelectorAll('.bo2-dot')];
     check('red kalah game 1', redDots[0]?.dataset.state === 'lose', redDots[0]?.dataset.state);
+
+    // Best-of tidak lagi dikunci di 2. BO3 selesai di 2 win, jadi blue yang sudah menang
+    // game 1 baru berada di match point -- dan game ke-3 tidak boleh terpotong.
+    sockets[0].onMessage({
+      type: 'snapshot',
+      payload: {
+        ...BO2_SNAPSHOT,
+        match: {
+          ...BO2_SNAPSHOT.match,
+          bo2: { enabled: true, bestOf: 3, games: [{ winner: 'blue' }, { winner: null }, { winner: null }] },
+        },
+      },
+    });
+    await settle();
+    const bo3Blue = [...gameplay.getElementById('bo2-blue').querySelectorAll('.bo2-dot')];
+    check('BO3 punya 3 titik', bo3Blue.length === 3, String(bo3Blue.length));
+    check('BO3 blue di match point',
+      bo3Blue[1]?.dataset.matchpoint === '1' && bo3Blue[2]?.dataset.matchpoint === undefined,
+      `${bo3Blue[1]?.dataset.matchpoint} / ${bo3Blue[2]?.dataset.matchpoint}`);
+
+    // BO5 selesai di 3 win: satu win sama sekali belum match point.
+    sockets[0].onMessage({
+      type: 'snapshot',
+      payload: {
+        ...BO2_SNAPSHOT,
+        match: {
+          ...BO2_SNAPSHOT.match,
+          bo2: { enabled: true, bestOf: 5, games: [{ winner: 'blue' }, { winner: null }, { winner: null }, { winner: null }, { winner: null }] },
+        },
+      },
+    });
+    await settle();
+    const bo5Blue = [...gameplay.getElementById('bo2-blue').querySelectorAll('.bo2-dot')];
+    check('BO5 punya 5 titik', bo5Blue.length === 5, String(bo5Blue.length));
+    check('BO5 dengan 1 win belum match point',
+      bo5Blue.every((dot) => dot.dataset.matchpoint === undefined),
+      bo5Blue.map((dot) => dot.dataset.matchpoint).join(','));
 
     const rosterBlue = gameplay.getElementById('roster-blue');
     check('roster blue tampil', rosterBlue.hidden === false);
@@ -198,9 +307,11 @@ async function main() {
   }
   console.log('========================================');
   process.exitCode = failed === 0 ? 0 : 1;
+  for (const window of openWindows) window.close();
 }
 
 main().catch((error) => {
   console.error('Suite crashed:', error);
   process.exitCode = 1;
+  for (const window of openWindows) window.close();
 });

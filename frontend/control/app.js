@@ -172,6 +172,11 @@ const headerImageInput = document.getElementById('header-image-file');
 const headerWidthSlider = document.getElementById('header-width-slider');
 const customItemsList = document.getElementById('custom-items-list');
 const bo2Editor = document.getElementById('bo2-editor');
+const bo2Rows = document.getElementById('bo2-rows');
+const bo2BestOfInput = document.getElementById('bo2-bestof-input');
+const bo2Title = document.getElementById('bo2-title');
+const bo2GameCount = document.getElementById('bo2-game-count');
+const bo2WinsNeeded = document.getElementById('bo2-wins-needed');
 const bo2Enabled = document.getElementById('bo2-enabled');
 const bo2Reset = document.getElementById('bo2-reset');
 const ocrEditor = document.getElementById('ocr-editor');
@@ -1357,15 +1362,32 @@ function goldDiffColor(match, style) {
   return style.mutedColor;
 }
 
-// BO2 hanya menyimpan `games[i].winner`. Status tombol di DOM dan bentuk titik di
-// overlay sama-sama diturunkan dari sana, jadi tidak mungkin ada dua sumber yang
-// berbeda pendapat tentang game mana yang sudah dimainan.
+// Best-of tidak lagi dikunci di 2. Satu sumber kebenaran tetap `games[i].winner`, tapi
+// panjangnya game sekarang ikut bestOf dan titik DOM dibuat ulang dari situ. Versi lama
+// memakai `[0, 1]` di tiga tempat (normalize, read, write) plus dua titik hardcoded di HTML,
+// jadi BO3 dan seterusnya tidak punya tempat untuk ditandai sama sekali.
+const BO_MIN = 2;
+const BO_MAX = 9;
+
+function normalizeBestOf(value) {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) return BO_MIN;
+  return Math.max(BO_MIN, Math.min(BO_MAX, numeric));
+}
+
+// Seri BO2 selesai di 1 win, BO3/BO4 di 2, BO5/BO6 di 3: ceil(n/2) benar untuk keduanya,
+// sedangkan `>= games.length` (yang dipakai versi lama) tidak pernah tercapai di BO3.
+function boWinsNeeded(bestOf) {
+  return Math.ceil(normalizeBestOf(bestOf) / 2);
+}
+
 function normalizeBo2(value) {
+  const bestOf = normalizeBestOf(value?.bestOf);
   const games = Array.isArray(value?.games) ? value.games : [];
   return {
     enabled: value?.enabled === true,
-    bestOf: 2,
-    games: [0, 1].map((index) => {
+    bestOf,
+    games: Array.from({ length: bestOf }, (unused, index) => {
       const winner = games[index]?.winner;
       return { winner: winner === 'blue' || winner === 'red' ? winner : null };
     }),
@@ -1376,10 +1398,42 @@ function bo2DotElements() {
   return bo2Editor ? [...bo2Editor.querySelectorAll('.bo2-dot')] : [];
 }
 
+// Titik dibuat ulang setiap kali jumlah game berubah. Index selalu 0..bestOf-1 sehingga
+// `readBo2FromDom` bisa memetakan data game langsung ke games[].
+function buildBo2Rows(bestOf) {
+  if (!bo2Rows) return;
+  const count = normalizeBestOf(bestOf);
+  bo2Rows.replaceChildren();
+  for (const team of ['blue', 'red']) {
+    const row = document.createElement('div');
+    row.className = 'bo2-row';
+    row.dataset.team = team;
+    const name = document.createElement('span');
+    name.textContent = team === 'blue' ? 'Blue' : 'Red';
+    row.append(name);
+    for (let index = 0; index < count; index += 1) {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'bo2-dot';
+      dot.dataset.game = String(index);
+      dot.title = `Game ${index + 1}`;
+      row.append(dot);
+    }
+    bo2Rows.append(row);
+  }
+  if (bo2Title) bo2Title.textContent = `Seri BO${count}`;
+  if (bo2GameCount) bo2GameCount.textContent = String(count);
+  if (bo2WinsNeeded) bo2WinsNeeded.textContent = String(boWinsNeeded(count));
+}
+
 function writeBo2ToDom(bo2) {
   if (!bo2Editor) return;
   const normalized = normalizeBo2(bo2);
   if (bo2Enabled) bo2Enabled.checked = normalized.enabled;
+  if (bo2BestOfInput) bo2BestOfInput.value = String(normalized.bestOf);
+  if (bo2Rows.querySelectorAll('.bo2-dot').length !== normalized.bestOf) {
+    buildBo2Rows(normalized.bestOf);
+  }
   bo2DotElements().forEach((dot) => {
     const team = dot.closest('.bo2-row')?.dataset.team;
     const winner = normalized.games[Number(dot.dataset.game)]?.winner ?? null;
@@ -1388,14 +1442,15 @@ function writeBo2ToDom(bo2) {
 }
 
 function readBo2FromDom() {
-  const games = [0, 1].map((gameIndex) => {
+  const bestOf = normalizeBestOf(bo2BestOfInput?.value);
+  const games = Array.from({ length: bestOf }, (unused, gameIndex) => {
     const blue = bo2Editor?.querySelector(`.bo2-row[data-team="blue"] .bo2-dot[data-game="${gameIndex}"]`);
     if (blue?.dataset.state === 'win') return { winner: 'blue' };
     const red = bo2Editor?.querySelector(`.bo2-row[data-team="red"] .bo2-dot[data-game="${gameIndex}"]`);
     if (red?.dataset.state === 'win') return { winner: 'red' };
     return { winner: null };
   });
-  return { enabled: bo2Enabled?.checked === true, bestOf: 2, games };
+  return { enabled: bo2Enabled?.checked === true, bestOf, games };
 }
 
 function bo2PreviewText(bo2, team) {
@@ -1889,6 +1944,19 @@ bo2Editor?.addEventListener('click', (event) => {
   toggleBo2Dot(dot.closest('.bo2-row')?.dataset.team, Number(dot.dataset.game));
 });
 
+// Mengubah Best of membangun ulang titik dan langsung menyimpan, sama seperti editor lain:
+// operator tidak boleh perlu menekan "Simpan Pengaturan" setelah memilih BO3.
+bo2BestOfInput?.addEventListener('change', () => {
+  const bestOf = normalizeBestOf(bo2BestOfInput.value);
+  buildBo2Rows(bestOf);
+  const config = readFormValues();
+  setConfig(config);
+  writeBo2ToDom(config.match.bo2);
+  renderPreview(config);
+  pushLiveConfig(config);
+  status.textContent = `Seri diubah ke BO${bestOf}: ${bestOf} game, seri selesai di ${boWinsNeeded(bestOf)} win.`;
+});
+
 resultEditor?.addEventListener('change', (event) => {
   // The mode picker is a <select>; matching input[id^="result-"] alone skipped it entirely.
   if (!event.target.matches('#result-visible, input[id^="result-"], select[id^="result-"]')) return;
@@ -1907,17 +1975,24 @@ bo2Enabled?.addEventListener('change', () => {
   renderPreview(config);
   pushLiveConfig(config);
   updateResultSeriesNote();
+  const bestOf = config.match.bo2.bestOf;
   status.textContent = bo2Enabled.checked
-    ? 'Indikator BO2 tampil di overlay.'
-    : 'Indikator BO2 disembunyikan dari overlay.';
+    ? `Indikator BO${bestOf} tampil di overlay.`
+    : `Indikator BO${bestOf} disembunyikan dari overlay.`;
 });
 bo2Reset?.addEventListener('click', () => {
-  writeBo2ToDom({ enabled: bo2Enabled?.checked === true, bestOf: 2, games: [{ winner: null }, { winner: null }] });
+  // Reset seri mempertahankan jumlah game yang dipilih; mengosongkan winner saja.
+  const bestOf = normalizeBestOf(bo2BestOfInput?.value);
+  writeBo2ToDom({
+    enabled: bo2Enabled?.checked === true,
+    bestOf,
+    games: Array.from({ length: bestOf }, () => ({ winner: null })),
+  });
   const config = readFormValues();
   setConfig(config);
   renderPreview(config);
   pushLiveConfig(config);
-  status.textContent = 'Seri BO2 dikosongkan.';
+  status.textContent = `Seri BO${bestOf} dikosongkan.`;
 });
 
 form.addEventListener('input', () => {

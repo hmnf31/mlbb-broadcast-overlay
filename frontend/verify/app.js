@@ -253,7 +253,7 @@ async function runAdapter() {
       rejected.push(field);
       continue;
     }
-    readings[field] = reading;
+    readings[field] = applyTimerRule(field, reading);
     // Isi nilai final hanya kalau operator belum mengisinya sendiri.
     if (finalValues[field] === '' || finalValues[field] === undefined) finalValues[field] = reading.value;
   }
@@ -277,6 +277,22 @@ function loadImage(dataUrl) {
       ? `Gambar siap. ${count} ROI tersimpan, adapter akan membacanya.`
       : 'Gambar siap, tapi belum ada ROI yang dikalibrasi. Setel ROI di halaman Kalibrasi OCR dulu, atau isi manual.')
     : 'Belum ada gambar. Unggah screenshot hasil match untuk membandingkan dengan angka di bawah.';
+}
+
+// Bacaan timer juga lewat OcrTimer, sama seperti halaman kalibrasi, supaya kedua halaman
+// tidak bisa berbeda pendapat soal angka timer. Bedanya di sini: adapter membaca satu
+// screenshot, jadi tracker praktis dipakai sebagai penjelasan kenapa angka diterima atau
+// ditahan -- operator tetap yang memutuskan nilai final.
+const timerTracker = window.OcrTimer?.createTracker() ?? null;
+
+function applyTimerRule(field, reading) {
+  if (field !== 'timer' || !timerTracker) return reading;
+  const outcome = timerTracker.observe(reading.value);
+  return {
+    ...reading,
+    value: outcome.value ?? reading.value,
+    note: window.OcrTimer.REASON_TEXT[outcome.reason] || outcome.reason,
+  };
 }
 
 function refreshFromState(payload) {

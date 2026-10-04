@@ -342,18 +342,19 @@ async function createOcrWorker() {
 
 // Tracker timer hidup terpisah dari ocrGuard: ocrGuard menilai tiap bacaan secara
 // independen, sedangkan timer harus ingat anchor-nya antar siklus. Dipisah supaya aturan
-// 3 detik / grace 10 detik bisa diuji tanpa browser.
+// confidence bisa diuji tanpa browser.
 let timerTracker = window.OcrTimer?.createTracker() ?? null;
 
 // Kembalikan keputusan untuk satu field. Timer lewat OcrTimer; sisanya lewat ocrGuard.
 function decideField(key, sample) {
   if (key === 'timer' && timerTracker) {
-    const outcome = timerTracker.observe(sample.value, sample.at);
+    const outcome = timerTracker.observe(sample.value, sample.at, sample.confidence);
     return {
       accepted: outcome.action !== 'ignore',
       value: outcome.value,
       reason: outcome.reason,
       reasonText: window.OcrTimer.REASON_TEXT[outcome.reason] || outcome.reason,
+      confidence: outcome.confidence ?? sample.confidence ?? null,
       // `ignore` = bacaan ditolak sementara dan angka overlay ditahan.
       pending: outcome.reason === 'pending',
       outcome,
@@ -377,7 +378,11 @@ async function readAllRois(worker) {
     const result = await worker.recognize(getCrop(activeSource, currentRegions[key]));
     const rawText = result.data.text.trim();
     const value = parseRecognizedValue(key, rawText);
-    const confidence = Number(result.data.confidence) || 0;
+    // Confidence tidak boleh dipaksa jadi 0 kalau engine tidak melaporkannya: angka 0 berarti
+    // "tidak terbaca" dan akan ditolak, padahal yang sebenarnya occur belum ada skor sama
+    // sekali. null diteruskan apa adanya supaya OcrTimer yang memutuskan.
+    const score = Number(result.data.confidence);
+    const confidence = Number.isFinite(score) ? score : null;
     const decision = decideField(key, { value, rawText, confidence, at: Date.now() });
 
     let resultCard = document.getElementById(`result-${key}`);
@@ -406,7 +411,7 @@ async function readAllRois(worker) {
       : shown;
     resultCard.dataset.accepted = String(accepted);
     resultCard.dataset.decision = decision.reason;
-    resultCard.querySelector('span').textContent = `${rawText || '(kosong)'} | ${Math.round(confidence)}% | nilai: ${displayValue ?? '-'}`;
+    resultCard.querySelector('span').textContent = `${rawText || '(kosong)'} | ${confidence === null ? '?' : Math.round(confidence)}% | nilai: ${displayValue ?? '-'}`;
     resultCard.querySelector('small').textContent = decision.accepted
       ? decision.reasonText
       : `${decision.reasonText} - ditolak, angka di overlay tidak berubah`;

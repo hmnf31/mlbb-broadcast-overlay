@@ -287,7 +287,7 @@ const timerTracker = window.OcrTimer?.createTracker() ?? null;
 
 function applyTimerRule(field, reading) {
   if (field !== 'timer' || !timerTracker) return reading;
-  const outcome = timerTracker.observe(reading.value);
+  const outcome = timerTracker.observe(reading.value, Date.now(), reading.confidence);
   return {
     ...reading,
     value: outcome.value ?? reading.value,

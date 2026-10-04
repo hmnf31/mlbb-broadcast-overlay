@@ -32,7 +32,9 @@
       .result small { display: block; color: #8fa3ad; margin-top: 4px; }
       .result[data-accepted='false'] { border-left-color: #55605f; opacity: .72; }
       .result[data-decision='accepted'] { border-left-color: #b7f06a; }
-      .result[data-decision='majority'], .result[data-decision='confirm'] { border-left-color: #ffd76a; }
+      .result[data-decision='anchor'], .result[data-decision='resync'] { border-left-color: #b7f06a; }
+      .result[data-decision='majority'], .result[data-decision='confirm'],
+      .result[data-decision='low_confidence'] { border-left-color: #ffd76a; }
       #status { min-height: 24px; margin: 12px 0; color: #b7f06a; }
       .live-link { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 12px; border-radius: 999px; font-size: .8rem; font-weight: 700; background: rgba(255,255,255,.08); color: #cfd8e3; }
       .live-link::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #7d8a99; }

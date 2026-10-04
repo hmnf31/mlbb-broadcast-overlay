@@ -152,9 +152,9 @@
         // sebagai salah baca, padahal timer MLBB memang hitung mundur dan berubah tiap detik,
         // jadi setiap bacaan valid akan ditolak sebagai 'dropped'.
         //
-        // Guard hanya menjaga bentuk, rentang, dan confidence. Seluruh keputusan temporal
-        // (anchor, tidak mundur, koreksi) milik OcrTimer, yang menganchor satu bacaan lalu
-        // menghitung sendiri -- satu-satunya cara supaya timer tidak diam di layar.
+        // Guard hanya menjaga bentuk, rentang, dan confidence. Keputusan temporal timer
+        // milik OcrTimer, yang memakai satu bacaan sebagai anchor lalu menghitung sendiri --
+        // satu-satunya cara supaya timer tidak diam di layar.
         return finish(true, 'accepted');
       }
 

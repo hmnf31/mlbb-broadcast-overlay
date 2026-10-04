@@ -27,8 +27,12 @@ function setHeroImage(image, heroId, entry) {
 
 const shell = document.getElementById('draft-shell');
 const ui = {
-  round: document.getElementById('draft-round'),
+  phase: document.getElementById('draft-phase'),
+  turnSide: document.getElementById('draft-turn-side'),
+  turnStep: document.getElementById('draft-turn-step'),
   source: document.getElementById('draft-source'),
+  advantage: document.getElementById('advantage'),
+  advantageWaiting: document.getElementById('advantage-waiting'),
   advantageFill: document.getElementById('advantage-fill'),
   advantageBlue: document.getElementById('advantage-blue-value'),
   advantageRed: document.getElementById('advantage-red-value'),
@@ -36,11 +40,16 @@ const ui = {
   redName: document.getElementById('advantage-red-name'),
   blueTitle: document.getElementById('board-blue-title'),
   redTitle: document.getElementById('board-red-title'),
+  blueComposition: document.getElementById('composition-blue'),
+  redComposition: document.getElementById('composition-red'),
   bluePicks: document.getElementById('board-blue-picks'),
   redPicks: document.getElementById('board-red-picks'),
   blueBans: document.getElementById('board-blue-bans'),
   redBans: document.getElementById('board-red-bans'),
   matchups: document.getElementById('matchup-list'),
+  recommend: document.getElementById('recommend'),
+  recommendAction: document.getElementById('recommend-action'),
+  recommendHint: document.getElementById('recommend-hint'),
   recommendSide: document.getElementById('recommend-side'),
   recommendList: document.getElementById('recommend-list'),
 };
@@ -82,7 +91,13 @@ function heroSlot(heroId, options = {}) {
   item.className = 'hero-slot';
   item.dataset.kind = options.kind || 'pick';
   item.dataset.empty = heroId ? 'false' : 'true';
-  if (options.active) item.dataset.active = 'true';
+  // Penanda slot yang harus diisi sekarang datang dari resolveTurn(), bukan dari "slot pick
+  // terakhir". Dulu `active` menyalakan slot pick terakhir, padahal urutan ban/pick campur,
+  // jadi penandanya bisa muncul di slot yang salah atau sama sekali tidak muncul.
+  if (options.next) {
+    item.dataset.next = 'true';
+    item.dataset.nextLabel = options.kind === 'ban' ? 'BAN' : 'PICK';
+  }
   if (heroId) {
     const entry = Analytics.entryFor(matrix, heroId);
     const image = document.createElement('img');
@@ -101,7 +116,25 @@ function fillSlots(container, heroIds, options) {
   container.replaceChildren();
   const slots = options.slots;
   for (let index = 0; index < slots; index += 1) {
-    container.append(heroSlot(heroIds[index], { ...options, active: index === heroIds.length - 1 }));
+    container.append(heroSlot(heroIds[index], {
+      ...options,
+      next: options.turn?.phase === options.kind && options.turn?.side === options.side
+        && options.turn?.slotIndex === index,
+    }));
+  }
+}
+
+// Komposisi role per tim. Baris pill kecil supaya alasan rekomendasi "Butuh marksman" punya
+// bentuk visual, bukan cuma kalimat.
+function renderComposition(container, counts) {
+  container.replaceChildren();
+  const entries = Object.entries(counts || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  for (const [role, total] of entries) {
+    const pill = document.createElement('span');
+    pill.className = 'role-pill';
+    pill.dataset.role = role;
+    pill.textContent = total > 1 ? `${role} ${total}` : role;
+    container.append(pill);
   }
 }
 
@@ -137,8 +170,21 @@ function renderMatchups(report) {
 }
 
 function renderRecommendations(report) {
-  const side = report.activeSide === 'red' ? 'red' : 'blue';
+  const turn = report.turn || {};
+  // Sisi yang direkomendasikan adalah sisi yang sedang mendapat giliran, bukan `activeSide`
+  // yang dulu diisi manual. Kalau keduanya berbeda, panelnya merekomendasikan hero untuk tim
+  // yang sedang ban -- kesalahan yang paling mudah terjadi di layar ini.
+  const side = turn.side === 'red' ? 'red' : 'blue';
+  const purpose = turn.phase === 'ban' ? 'ban' : 'pick';
+
+  ui.recommend.dataset.purpose = purpose;
+  ui.recommend.dataset.side = side;
+  ui.recommendAction.textContent = purpose === 'ban' ? 'BAN' : 'PICK';
   ui.recommendSide.textContent = side === 'red' ? 'RED' : 'BLUE';
+  ui.recommendHint.textContent = purpose === 'ban'
+    ? 'paling berbahaya kalau lolos ke lawan'
+    : 'terbaik untuk komposisi tim';
+
   const picks = report.recommendations[side] || [];
 
   ui.recommendList.replaceChildren();
@@ -158,6 +204,7 @@ function renderRecommendations(report) {
     name.textContent = entry.name;
     // Alasan diambil dari reason paling kuat supaya operator tidak perlu membaca semua.
     const reason = entry.reasons.find((item_) => item_.kind === 'counter')
+      || entry.reasons.find((item_) => item_.kind === 'risk')
       || entry.reasons.find((item_) => item_.kind === 'synergy')
       || entry.reasons[0];
     const why = document.createElement('span');
@@ -174,6 +221,24 @@ function renderRecommendations(report) {
   }
 }
 
+// Header: giliran yang sedang berjalan. Urutannya diturunkan dari slot yang terisi, jadi
+// operator tidak pernah perlu mengisi "round" atau "sisi aktif" secara manual.
+function renderTurn(turn) {
+  const phase = turn.complete ? 'done' : (turn.phase || 'done');
+  ui.phase.dataset.phase = phase;
+  ui.phase.textContent = turn.complete ? 'DONE' : (turn.phase || 'BAN').toUpperCase();
+
+  const side = turn.side || (turn.complete ? null : 'blue');
+  if (turn.complete) {
+    ui.turnSide.textContent = 'COMPLETE';
+    ui.turnSide.removeAttribute('data-side');
+  } else {
+    ui.turnSide.textContent = side === 'red' ? 'RED' : 'BLUE';
+    ui.turnSide.dataset.side = side;
+  }
+  ui.turnStep.textContent = `${turn.index + 1} / ${turn.total}`;
+}
+
 function render(payload) {
   const draft = payload?.draft || {};
   const teams = payload?.teams || {};
@@ -183,7 +248,6 @@ function render(payload) {
   shell.dataset.visible = draft.visible === true ? 'true' : 'false';
   applyDesignScale();
 
-  ui.round.textContent = String(draft.round || 1);
   ui.blueName.textContent = teams.blue?.name || 'BLUE';
   ui.redName.textContent = teams.red?.name || 'RED';
   ui.blueTitle.textContent = teams.blue?.name || 'BLUE';
@@ -191,20 +255,34 @@ function render(payload) {
 
   const report = Analytics.evaluate(draft, matrix);
   const draftSides = report.draft;
+  const turn = report.turn;
 
-  // Tanpa matriks advantage selalu 0; lebih baik disembunyikan daripada menampilkan "0"
-  // yang terlihat seperti-hasil hitungan.
-  const hasMatrix = Boolean(matrix);
-  const magnitude = hasMatrix ? Math.min(50, Math.abs(report.advantage) / 2) : 0;
+  renderTurn(turn);
+
+  // Advantage baru ditampilkan setelah kedua tim punya pick. Tanpa gerbang ini angka dari satu
+  // hero saja muncul sebagai "+37" yang terlihat seperti hasil analisis padahal cuma
+  // membandingkan satu power rating.
+  const ready = report.advantageReady && report.hasMatrix;
+  ui.advantage.dataset.ready = ready ? 'true' : 'false';
+  ui.advantage.dataset.matrix = report.hasMatrix ? 'loaded' : 'missing';
+  ui.advantageWaiting.textContent = report.hasMatrix
+    ? 'menunggu pick pertama kedua tim'
+    : 'matriks gagal dimuat · advantage nonaktif';
+
+  const magnitude = ready ? Math.min(50, Math.abs(report.advantage) / 2) : 0;
   ui.advantageFill.style.width = `${magnitude}%`;
   ui.advantageFill.dataset.leader = report.leader;
-  ui.advantageBlue.textContent = hasMatrix ? signed(report.advantage) : '--';
-  ui.advantageRed.textContent = hasMatrix ? signed(-report.advantage) : '--';
+  ui.advantageBlue.textContent = ready ? signed(report.advantage) : '--';
+  ui.advantageRed.textContent = ready ? signed(-report.advantage) : '--';
 
-  fillSlots(ui.bluePicks, draftSides.blue.picks, { kind: 'pick', slots: Analytics.PICK_SLOTS });
-  fillSlots(ui.redPicks, draftSides.red.picks, { kind: 'pick', slots: Analytics.PICK_SLOTS });
-  fillSlots(ui.blueBans, draftSides.blue.bans, { kind: 'ban', slots: Analytics.BAN_SLOTS });
-  fillSlots(ui.redBans, draftSides.red.bans, { kind: 'ban', slots: Analytics.BAN_SLOTS });
+  const slotOptions = (kind, side) => ({ kind, side, turn, slots: kind === 'ban' ? Analytics.BAN_SLOTS : Analytics.PICK_SLOTS });
+  fillSlots(ui.bluePicks, draftSides.blue.picks, slotOptions('pick', 'blue'));
+  fillSlots(ui.redPicks, draftSides.red.picks, slotOptions('pick', 'red'));
+  fillSlots(ui.blueBans, draftSides.blue.bans, slotOptions('ban', 'blue'));
+  fillSlots(ui.redBans, draftSides.red.bans, slotOptions('ban', 'red'));
+
+  renderComposition(ui.blueComposition, report.composition?.blue);
+  renderComposition(ui.redComposition, report.composition?.red);
 
   renderMatchups(report);
   renderRecommendations(report);

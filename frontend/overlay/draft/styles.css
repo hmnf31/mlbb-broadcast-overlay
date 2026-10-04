@@ -52,26 +52,26 @@ body {
   display: flex;
 }
 
-/* --- ticker --------------------------------------------------------------- */
+/* --- header + giliran ------------------------------------------------------ */
 
-.draft-ticker {
+/* 'ROUND n' yang diisi manual diganti oleh giliran yang benar-benar sedang berjalan. Urutannya
+   diturunkan dari slot yang sudah terisi, jadi tidak bisa salah dan tidak perlu diisi. */
+.draft-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(12px * var(--design-scale));
-  padding: calc(6px * var(--design-scale)) calc(14px * var(--design-scale));
+  gap: calc(16px * var(--design-scale));
+  padding: calc(8px * var(--design-scale)) calc(16px * var(--design-scale));
   border: 1px solid rgba(0, 229, 255, 0.22);
   border-radius: calc(6px * var(--design-scale));
   background: rgba(10, 14, 24, 0.86);
-  font-size: calc(11px * var(--design-scale));
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
-.draft-ticker-left {
+.draft-header-left,
+.draft-header-right {
   display: flex;
   align-items: center;
-  gap: calc(12px * var(--design-scale));
+  gap: calc(14px * var(--design-scale));
 }
 
 .draft-chip {
@@ -80,15 +80,68 @@ body {
   background: rgba(0, 229, 255, 0.16);
   border: 1px solid rgba(0, 229, 255, 0.4);
   color: var(--cyan);
+  font-size: calc(11px * var(--design-scale));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   font-weight: 700;
 }
 
-.draft-round {
-  color: var(--muted);
+/* BAN dan PICK dibedakan warna dan lebar, jadi fase terbaca sekilas tanpa harus membaca
+   teksnya. */
+.draft-phase {
+  min-width: calc(74px * var(--design-scale));
+  padding: calc(5px * var(--design-scale)) calc(12px * var(--design-scale));
+  border-radius: calc(5px * var(--design-scale));
+  text-align: center;
+  font-size: calc(17px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  border: 1px solid transparent;
 }
 
-.draft-round b {
+.draft-phase[data-phase='ban'] {
+  background: rgba(255, 82, 95, 0.18);
+  border-color: rgba(255, 82, 95, 0.55);
+  color: var(--rose);
+}
+
+.draft-phase[data-phase='pick'] {
+  background: rgba(0, 229, 255, 0.18);
+  border-color: rgba(0, 229, 255, 0.55);
+  color: var(--cyan);
+}
+
+.draft-phase[data-phase='done'] {
+  background: rgba(244, 206, 0, 0.18);
+  border-color: rgba(244, 206, 0, 0.55);
   color: var(--gold);
+}
+
+.draft-turn {
+  display: flex;
+  align-items: baseline;
+  gap: calc(9px * var(--design-scale));
+}
+
+.draft-turn-side {
+  font-size: calc(20px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.draft-turn-side[data-side='blue'] {
+  color: var(--cyan);
+}
+
+.draft-turn-side[data-side='red'] {
+  color: var(--rose);
+}
+
+.draft-turn-step {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: calc(12px * var(--design-scale));
+  color: var(--muted);
 }
 
 /* Sumber data tidak boleh disembunyikan: advantage ini bukan hasil statistik. */
@@ -109,10 +162,39 @@ body {
 /* --- advantage bar -------------------------------------------------------- */
 
 .advantage {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: calc(14px * var(--design-scale));
+}
+
+/* Advantage disembunyikan sampai kedua tim punya minimal satu pick. Angka dari satu hero
+   saja bisa tampil sebagai '+37' yang terlihat seperti hasil analisis padahal cuma
+   membandingkan satu power rating, jadi lebih jujur ditampilkan sebagai "menunggu". */
+.advantage[data-ready='false'] .advantage-value,
+.advantage[data-ready='false'] .advantage-fill,
+.advantage[data-ready='false'] .advantage-mid,
+.advantage[data-ready='false'] .advantage-team {
+  opacity: 0.25;
+}
+
+.advantage-waiting {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: calc(9px * var(--design-scale));
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.advantage[data-ready='true'] .advantage-waiting {
+  display: none;
+}
+
+.advantage[data-matrix='missing'] .advantage-waiting {
+  display: block;
 }
 
 .advantage-side {
@@ -242,6 +324,31 @@ body {
   color: var(--rose);
 }
 
+/* Komposisi role: membuat alasan rekomendasi seperti "Butuh marksman" jadi sesuatu yang
+   bisa dilihat, bukan sekadar teks. Baris kecil, jadi tidak merebut ruang pick. */
+.board-composition {
+  display: flex;
+  align-items: center;
+  gap: calc(4px * var(--design-scale));
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.role-pill {
+  padding: calc(1px * var(--design-scale)) calc(5px * var(--design-scale));
+  border-radius: calc(3px * var(--design-scale));
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  font-size: calc(8px * var(--design-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.role-pill[data-role='unknown'] {
+  display: none;
+}
+
 .board-bans,
 .board-picks {
   list-style: none;
@@ -291,6 +398,52 @@ body {
   filter: grayscale(0.7);
 }
 
+/* Slot yang harus diisi sekarang, lebih eksplisit dari border tipis. Sebelumnya hanya
+   `data-active` yang menyalakan slot PICK terakhir, padahal urutan ban/pick campur, jadi
+   penanda itu bisa menyala di slot yang salah. Sekarang penandanya datang dari resolveTurn(). */
+.hero-slot[data-next='true'] {
+  opacity: 1;
+  filter: none;
+  border-color: var(--gold);
+  border-style: solid;
+  box-shadow: 0 0 calc(12px * var(--design-scale)) rgba(244, 206, 0, 0.65);
+  animation: draft-next-pulse 1.6s ease-in-out infinite;
+}
+
+.hero-slot[data-next='true']::after {
+  content: attr(data-next-label);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 9, 15, 0.82);
+  color: var(--gold);
+  font-size: calc(9px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Animasi sengaja dimatikan kalau operator minta OSC reduced motion, dan tetap jalan di OBS
+   karena overlay memang dirancang untuk ditonton, bukan diklik. */
+@keyframes draft-next-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 calc(12px * var(--design-scale)) rgba(244, 206, 0, 0.65);
+  }
+
+  50% {
+    box-shadow: 0 0 calc(2px * var(--design-scale)) rgba(244, 206, 0, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-slot[data-next='true'] {
+    animation: none;
+  }
+}
+
 .hero-slot[data-empty='true'] {
   border-style: dashed;
   border-color: var(--outline);
@@ -336,6 +489,51 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* Judul rekomendasi ikut fase: warna dan kata keduanya berubah antara ban dan pick. */
+.recommend-title {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8px * var(--design-scale));
+}
+
+.recommend-action {
+  padding: calc(2px * var(--design-scale)) calc(7px * var(--design-scale));
+  border-radius: calc(3px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.recommend[data-purpose='ban'] .recommend-action {
+  background: rgba(255, 82, 95, 0.2);
+  color: var(--rose);
+}
+
+.recommend[data-purpose='pick'] .recommend-action {
+  background: rgba(0, 229, 255, 0.2);
+  color: var(--cyan);
+}
+
+.recommend-side {
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.recommend[data-side='blue'] .recommend-side {
+  color: var(--cyan);
+}
+
+.recommend[data-side='red'] .recommend-side {
+  color: var(--rose);
+}
+
+/* Penjelasan singkat di judul, supaya operator tahu angka daftar ini searching for apa. */
+.recommend-hint {
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  opacity: 0.75;
 }
 
 .matchup-list {

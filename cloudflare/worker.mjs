@@ -258,11 +258,28 @@ function defaultOcrState() {
 const DRAFT_PICK_SLOTS = 5;
 const DRAFT_BAN_SLOTS = 5;
 
+// Urutan giliran draft MLBB, dicerminkan dari frontend/shared/draft-analytics.js supaya
+// `turnIndex` yang di-clamp di sini dan yang dihitung overlay selalu hidup di rentang yang
+// sama. Keduanya disengaja terpisah: worker tidak boleh mengimpor modul browser, dan matriks
+// hero tidak boleh ikut masuk ke Worker.
+const DRAFT_TURNS = [
+  ['blue', 'ban'], ['red', 'ban'], ['blue', 'ban'], ['red', 'ban'], ['blue', 'ban'],
+  ['blue', 'pick'], ['red', 'pick'], ['blue', 'pick'], ['red', 'pick'],
+  ['red', 'ban'], ['blue', 'ban'],
+  ['blue', 'pick'], ['red', 'pick'],
+  ['red', 'ban'], ['blue', 'ban'],
+  ['blue', 'pick'], ['red', 'pick'],
+  ['red', 'ban'],
+  ['blue', 'pick'], ['red', 'pick'],
+];
+
 function defaultDraftState() {
   return {
     visible: false,
     round: 1,
     activeSide: 'blue',
+    turnMode: 'auto',
+    turnIndex: 0,
     blue: { picks: [], bans: [] },
     red: { picks: [], bans: [] },
   };
@@ -275,10 +292,17 @@ function normalizeDraftState(value) {
     .filter((id) => typeof id === 'string' && id.length > 0 && id.length <= 64)
     .slice(0, DRAFT_PICK_SLOTS + DRAFT_BAN_SLOTS);
   const round = Number(value.round);
+  const turnIndex = Number(value.turnIndex);
   return {
     visible: value.visible === true,
     round: Number.isFinite(round) ? Math.max(1, Math.min(15, Math.round(round))) : 1,
     activeSide: value.activeSide === 'red' ? 'red' : 'blue',
+    // 'auto': giliran diturunkan dari slot yang terisi (urutan draft MLBB tetap). 'manual':
+    // operator menggeser kursor sendiri untuk format non-standar.
+    turnMode: value.turnMode === 'manual' ? 'manual' : 'auto',
+    turnIndex: Number.isFinite(turnIndex)
+      ? Math.max(0, Math.min(DRAFT_TURNS.length - 1, Math.round(turnIndex)))
+      : 0,
     blue: {
       picks: heroIds(value.blue?.picks).slice(0, DRAFT_PICK_SLOTS),
       bans: heroIds(value.blue?.bans).slice(0, DRAFT_BAN_SLOTS),

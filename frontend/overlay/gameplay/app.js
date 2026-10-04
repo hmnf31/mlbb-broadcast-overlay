@@ -578,7 +578,37 @@ function renderBo2(match) {
   }
 }
 
+// `renderCustomItems` dipanggil dari `render()`, dan `render()` jalan tiap snapshot — dengan OCR
+// Live aktif itu ~1x/detik. `replaceChildren()` di sini berarti setiap `img` dengan data-URL
+// di-src ulang, jadi browser decode ulang PNG bespoke tiap detik dan DOM-nya dibongkar-pasang
+// terus-menerus. Hasilnya kartu custom berkedip dan boros CPU tepat saat operator paling butuh
+// overlay stabil.
+//
+// Jadi Elements hanya ditulis ulang kalau isinya memang berubah. Fingerprint dihitung dari
+// nilai yang benar-benar dipakai, jadi mengubah warna atau teks di panel kontrol tetap langsung
+// terlihat.
+let customItemsSignature = '';
+
+function customItemsKey(config) {
+  return JSON.stringify((config.customItems || []).map((item) => [
+    item?.id,
+    item?.type,
+    item?.src || '',
+    item?.name || '',
+    item?.text || '',
+    Number(item?.width) || 160,
+    Number(item?.height) || 90,
+    Number(item?.size) || 24,
+    item?.color || '',
+    config.style.fontFamily,
+  ]));
+}
+
 function renderCustomItems(config) {
+  const signature = customItemsKey(config);
+  if (signature === customItemsSignature) return;
+  customItemsSignature = signature;
+
   const layer = document.getElementById('custom-items-layer');
   layer.replaceChildren();
   (config.customItems || []).forEach((item) => {

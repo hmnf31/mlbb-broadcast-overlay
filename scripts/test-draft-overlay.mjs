@@ -105,7 +105,12 @@ section('Render snapshot draft');
   check('render tanpa error setelah snapshot', errors.length === 0, errors.join(' | '));
 
   check('shell terlihat', document.getElementById('draft-shell').dataset.visible === 'true');
-  check('round tampil', document.getElementById('draft-round').textContent === '3', document.getElementById('draft-round').textContent);
+
+  // Draft ini berhenti di ban kedua biru: ban B1 dan R1 sudah terisi, jadi langkah berikutnya
+  // adalah ban biru kedua. Ini yang ditebak panel, bukan diisi manual.
+  check('fase ban tampil', document.getElementById('draft-phase').dataset.phase === 'ban', document.getElementById('draft-phase').dataset.phase);
+  check('sisi giliran biru', document.getElementById('draft-turn-side').dataset.side === 'blue', document.getElementById('draft-turn-side').dataset.side);
+  check('nomor langkah tampil', document.getElementById('draft-turn-step').textContent === '3 / 20', document.getElementById('draft-turn-step').textContent);
 
   const bluePicks = document.getElementById('board-blue-picks').children;
   check('5 slot pick biru dirender', bluePicks.length === 5, String(bluePicks.length));
@@ -116,9 +121,14 @@ section('Render snapshot draft');
   check('src gambar dari aset hero', image?.getAttribute('src') === '/assets/heroes/khufra.png', String(image?.getAttribute('src')));
   check('nama hero tampil di slot', (bluePicks[0].querySelector('.hero-name')?.textContent || '') === 'Khufra', bluePicks[0].querySelector('.hero-name')?.textContent);
 
-  // Slot terkisi terakhir ditandai aktif supaya operator tahu giliran siapa.
-  check('slot pick terakhir ditandai aktif', bluePicks[1].dataset.active === 'true');
-  check('slot lain tidak aktif', bluePicks[0].dataset.active !== 'true' && bluePicks[2].dataset.active !== 'true');
+  // Slot giliran ditandai di sisi yang benar, pada slot yang kosong. Penanda lama menyalakan
+  // "pick terakhir" yang berarti B2 (sudah terisi) -- salah tim dan salah langkah.
+  const redPicks = document.getElementById('board-red-picks').children;
+  const blueBans = document.getElementById('board-blue-bans').children;
+  check('slot ban giliran ditandai', blueBans[1].dataset.next === 'true', JSON.stringify([...blueBans].map((s) => s.dataset.next || '-')));
+  check('slot ban giliran kosong', blueBans[1].dataset.empty === 'true', blueBans[1].dataset.empty);
+  check('slot ban terisi tidak ditandai', blueBans[0].dataset.next !== 'true');
+  check('slot pick tidak ada yang ditandai saat giliran ban', [...bluePicks, ...redPicks].every((slot) => slot.dataset.next !== 'true'));
 
   check('slot kosong ditandai empty', bluePicks[2].dataset.empty === 'true');
   check('slot ban ditandai kind ban', document.getElementById('board-blue-bans').children[0].dataset.kind === 'ban');
@@ -144,12 +154,47 @@ section('Render snapshot draft');
   check('rekomendasi dirender lima', recommendations.length === 5, String(recommendations.length));
   check('rekomendasi punya nama', (recommendations[0].querySelector('.recommend-name')?.textContent || '').length > 0);
   check('rekomendasi punya alasan', (recommendations[0].querySelector('.recommend-why')?.textContent || '').length > 0);
-  check('sisi aktif jadi judul rekomendasi', document.getElementById('recommend-side').textContent === 'BLUE');
+  check('sisi rekomendasi ikut giliran', document.getElementById('recommend-side').textContent === 'BLUE', document.getElementById('recommend-side').textContent);
+  check('tujuan rekomendasi ikut fase', document.getElementById('recommend').dataset.purpose === 'ban', document.getElementById('recommend').dataset.purpose);
 
-  const names = [...recommendations].map((item) => item.querySelector('.recommend-name').textContent);
-  check('hero yang sudah dipick tidak direkomendasikan', !names.includes('Khufra') && !names.includes('Yve'), names.join(', '));
-  check('hero yang ter-ban tidak direkomendasikan', !names.includes('Grock') && !names.includes('Claude'), names.join(', '));
-  check('hero yang dipick enemy tidak direkomendasikan', !names.includes('Ling'), names.join(', '));
+  const composition = document.getElementById('composition-blue').children;
+  check('komposisi role dirender', composition.length > 0, String(composition.length));
+  check('pill komposisi punya role', (composition[0].textContent || '').trim().length > 0, composition[0].textContent);
+}
+
+section('Rekomendasi saat fase pick');
+{
+  // Draft yang sama ditambah ban lengkap fase pertama, jadi langkah berikutnya masuk ke pick 1-1
+  // milik biru. Sasarannya harus berubah dari ban ke pick, dan kandidat ban (herOwn pick)
+  // tidak boleh bocor ke daftar pick.
+  const { document, sockets } = await boot();
+  sockets[0].onMessage({
+    type: 'snapshot',
+    payload: {
+      teams: { blue: { name: 'ONIC' }, red: { name: 'RRQ' } },
+      draft: {
+        visible: true,
+        blue: { picks: [], bans: ['grock', 'claude', 'france'] },
+        red: { picks: [], bans: ['x_borg', 'gusion', 'hanabi'] },
+      },
+    },
+  });
+
+  check('fase pick terdeteksi', document.getElementById('draft-phase').dataset.phase === 'pick', document.getElementById('draft-phase').dataset.phase);
+  check('giliran pick pertama biru', document.getElementById('draft-turn-side').dataset.side === 'blue', document.getElementById('draft-turn-side').dataset.side);
+  check('langkah ke-6', document.getElementById('draft-turn-step').textContent === '6 / 20', document.getElementById('draft-turn-step').textContent);
+  check('tujuan rekomendasi pick', document.getElementById('recommend').dataset.purpose === 'pick', document.getElementById('recommend').dataset.purpose);
+
+  const picks = document.getElementById('recommend-list').children;
+  check('rekomendasi pick dirender', picks.length > 0, String(picks.length));
+  const names = [...picks].map((item) => item.querySelector('.recommend-name').textContent);
+  check('hero yang ter-ban tidak masuk rekomendasi pick',
+    !['Grock', 'Claude', 'France', 'X.Borg', 'Gusion', 'Hanabi'].some((name) => names.includes(name)), names.join(', '));
+
+  // Ban ke-1 ke-5 sudah lewat, jadi tidak ada slot ban yang lagi ditandai-next.
+  const blueBans = document.getElementById('board-blue-bans').children;
+  check('tidak ada slot ban yang ditandai-next saat giliran pick', [...blueBans].every((slot) => slot.dataset.next !== 'true'));
+  check('slot pick pertama ditandai-next', document.getElementById('board-blue-picks').children[0].dataset.next === 'true');
 }
 
 section('Matriks gagal dimuat');
@@ -200,7 +245,9 @@ section('Snapshot sampai sebelum matriks dimuat');
   check('draft tidak hilang saat matriks dimuat',
     document.getElementById('board-blue-picks').children[0].dataset.empty === 'false',
     document.getElementById('board-blue-picks').children[0].dataset.empty);
-  check('round tetap 3 setelah matriks dimuat', document.getElementById('draft-round').textContent === '3');
+  check('giliran tetap dihitung setelah matriks dimuat',
+    document.getElementById('draft-turn-step').textContent === '3 / 20',
+    document.getElementById('draft-turn-step').textContent);
   check('nama tim tetap tampil setelah matriks dimuat', document.getElementById('board-red-title').textContent === 'RRQ');
   check('advantage dihitung setelah matriks dimuat',
     /^\+[1-9]\d*$/.test(document.getElementById('advantage-blue-value').textContent),

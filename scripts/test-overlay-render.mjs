@@ -254,6 +254,38 @@ const toSeconds = (text) => {
 
     sockets[0].onMessage({ type: 'snapshot', payload: { ...BO2_SNAPSHOT, players: null } });
     check('roster hilang saat players null', gameplay.getElementById('roster-blue').hidden === true);
+
+    // Custom items dibangun ulang setiap snapshot. Dengan OCR Live aktif itu ~1x/detik, dan
+    // `replaceChildren()` memaksa browser decode ulang tiap data-URL gambar. Node yang sama
+    // harus dipakai ulang kalau isinya tidak berubah.
+    const layer = gameplay.getElementById('custom-items-layer');
+    const customItems = [{ id: 'slotSpon', type: 'image', name: 'Sponsor', src: 'data:image/png;base64,AAA', width: 200, height: 90 }];
+    const withItems = {
+      ...BO2_SNAPSHOT,
+      presentation: { ...(BO2_SNAPSHOT.presentation || {}), customItems },
+    };
+    sockets[0].onMessage({ type: 'snapshot', payload: withItems });
+    await settle();
+
+    check('custom item dari snapshot dirender', layer.children.length === 1, String(layer.children.length));
+    const firstNode = layer.querySelector('.custom-item');
+    check('custom item benar-benar satu elemen', Boolean(firstNode) && layer.children.length === 1);
+
+    sockets[0].onMessage({ type: 'snapshot', payload: { ...withItems, match: { ...BO2_SNAPSHOT.match, blueKills: 99 } } });
+    await settle();
+    check('node custom item dipakai ulang saat isi sama',
+      layer.querySelector('.custom-item') === firstNode, String(layer.children.length));
+
+    sockets[0].onMessage({
+      type: 'snapshot',
+      payload: {
+        ...withItems,
+        presentation: { ...withItems.presentation, customItems: [{ ...customItems[0], src: 'data:image/png;base64,BBB' }] },
+      },
+    });
+    await settle();
+    check('custom item dibangun ulang saat src berubah',
+      layer.querySelector('.custom-item') !== firstNode, String(layer.children.length));
   }
 
   section('Overlay result');

@@ -227,9 +227,13 @@ section('OcrParse: parsing bacaan mentah');
   // Logika ini sama persis dengan yang dipakai halaman debug sebelum dipindah ke shared.
   // Kalau salah di sini, angka yang salah tayang di stream.
   check('timer 22:05 jadi detik', OcrParse.parseRecognizedValue('timer', '22:05') === 1325, String(OcrParse.parseRecognizedValue('timer', '22:05')));
-  check('timer dengan spasi', OcrParse.parseRecognizedValue('timer', '04 : 30') === 270, String(OcrParse.parseRecognizedValue('timer', '04 : 30')));
-  check('timer pakai titik sebagai pemisah', OcrParse.parseRecognizedValue('timer', '09.45') === 585, String(OcrParse.parseRecognizedValue('timer', '09.45')));
-  check('timer di atas 60 menit tidak pecah', OcrParse.parseRecognizedValue('timer', '61:00') === 3660, String(OcrParse.parseRecognizedValue('timer', '61:00')));
+  // Bentuk di luar `mm:ss` ditolak, bukan ditebak. Regex lama menerima spasi di sekitar titik
+  // dua dan `.` sebagai pemisah; sekarang keduanya `null` supaya siklus scan berikutnya
+  // mengulang, karena angka hasil tebakan lebih berbahaya daripada satu siklus yang terlewat.
+  check('timer dengan spasi ditolak', OcrParse.parseRecognizedValue('timer', '04 : 30') === null, String(OcrParse.parseRecognizedValue('timer', '04 : 30')));
+  check('timer pakai titik ditolak', OcrParse.parseRecognizedValue('timer', '09.45') === null, String(OcrParse.parseRecognizedValue('timer', '09.45')));
+  check('timer di atas 59 menit tetap diterima', OcrParse.parseRecognizedValue('timer', '61:00') === 3660, String(OcrParse.parseRecognizedValue('timer', '61:00')));
+  check('detik di atas 59 ditolak', OcrParse.parseRecognizedValue('timer', '02:75') === null, String(OcrParse.parseRecognizedValue('timer', '02:75')));
   check('timer garbage jadi null', OcrParse.parseRecognizedValue('timer', 'menang') === null, String(OcrParse.parseRecognizedValue('timer', 'menang')));
 
   check('kill polos', OcrParse.parseRecognizedValue('blueKills', '18') === 18, String(OcrParse.parseRecognizedValue('blueKills', '18')));

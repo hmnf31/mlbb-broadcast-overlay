@@ -1,17 +1,17 @@
 // Regression test aturan timer.
 //
 // Requirement operator, dan hanya itu: timer di-anchor dari bacaan OCR pertama yang valid lalu
-// berjalan terus. Tidak ada verifikasi yang menahan angka, tidak ada logika pause, dan waktu
-// tidak boleh mundur.
+// berjalan terus, tidak pernah mundur, dan TIDAK punya filter lain. Setiap bacaan yang tidak
+// lebih besar dari waktu berjalan diterima apa adanya.
 //
-// Test ini mengunci ketiga hal itu sekaligus, karena ketiganya adalah bug yang pernah nyata:
-// timer diam di layar (anchor tertahan verifikasi), timer melompat (pause salah baca), dan
-// timer maju-mundur (angka tidak pernah turun).
+// Test ini mengunci aturan itu karena ketiganya adalah bug yang pernah nyata: timer diam di
+// layar (anchor tertahan verifikasi), timer melompat (pause salah baca), dan — yang paling
+// merusak — timer macet permanen karena bacaan yang benar ditolak sebagai "salah baca".
 //
 // Menjalankan frontend/shared/ocr-timer.js apa adanya, tanpa browser.
 import '../frontend/shared/ocr-timer.js';
 
-const { createTracker, MAX_DROP_SECONDS, CORRECT_DRIFT_SECONDS, MAX_SECONDS } = globalThis.OcrTimer;
+const { createTracker, MAX_SECONDS } = globalThis.OcrTimer;
 
 let passed = 0;
 let failed = 0;
@@ -85,82 +85,43 @@ section('Tidak pernah mundur');
   check('nilai tetap turun sendiri', tracker.current(T0 + 7_000) === 593, String(tracker.current(T0 + 7_000)));
 }
 
-section('Bacaan jatuh jauh ditolak sebagai salah baca');
+section('Bacaan jatuh jauh tetap diterima -- ini yang pernah macet');
+{
+  // Bug yang dilaporkan operator: "02:04 | 96%" dibaca benar, tapi tidak pernah masuk, karena
+  // satu bacaan salah besar di awal tertangkap sebagai anchor dan setiap bacaan berikutnya
+  // ditolak sebagai "jatuh terlalu jauh". Semuanya yang salah ada di filter ini: begitu
+  // operator sudah yakin bacaannya benar, filter tidak berhak menolak.
+  const tracker = createTracker();
+  tracker.observe(735, T0);
+  check('nilai berjalan 730', tracker.current(T0 + 5_000) === 730, String(tracker.current(T0 + 5_000)));
+
+  const corrected = tracker.observe(124, T0 + 5_000);
+  check('jatuh jauh diterima', corrected.action === 'accepted', corrected.action);
+  check('anchor langsung pindah ke 124', tracker.state().seconds === 124, String(tracker.state().seconds));
+  check('hitung mundur lanjut dari 124', tracker.current(T0 + 6_000) === 123, String(tracker.current(T0 + 6_000)));
+  check('selisihnya tercatat', corrected.drift === 606, String(corrected.drift));
+
+  // Bahkan lompatan besar ke bawah setelah anchor benar harus diterima, karena tidak ada
+  // ambang yang boleh menahan angka yang operator sudah pastikan benar.
+  const again = tracker.observe(2, T0 + 6_000);
+  check('lompatan besar ke bawah tetap diterima', again.action === 'accepted', again.action);
+  check('anchor 2', tracker.state().seconds === 2, String(tracker.state().seconds));
+
+  // Yang tetap ditolak hanya yang naik, karena itu akan membuat angka lompat ke belakang.
+  check('naik setelah turun tetap ditolak', tracker.observe(3, T0 + 6_000).reason === 'backward');
+}
+
+section('Tidak ada ambang koreksi atau batas drop');
 {
   const tracker = createTracker();
   tracker.observe(600, T0);
-  // Lokal 595, tapi OCR salah baca "10:30" jadi "1:30".
-  const misread = tracker.observe(90, T0 + 5_000);
-  check('jatuh jauh ditolak', misread.action === 'ignore', misread.action);
-  check('alasannya salah baca', misread.reason === 'misread_drop', misread.reason);
-  check('angka tidak berubah', misread.current === 595, String(misread.current));
-  check('limit yang dipakai tercatat', misread.dropLimit === MAX_DROP_SECONDS + 5, String(misread.dropLimit));
-
-  // Selisih sebesar ini masih mungkin: timer memang berjalan.
-  const plausible = tracker.observe(594, T0 + 6_000);
-  check('selisih 1 detik diterima', plausible.action === 'accepted', plausible.action);
-}
-
-section('Batas bawah yang bergerak mengikuti waktu');
-{
-  // Drop limit harus nambah seiring waktu, kalau tidak setiap bacaan yang sah akan mulai
-  // ditolak sekitar menit ke-1: nilai berjalan sudah 540 tapi anchor masih 600.
-  const tracker = createTracker();
-  tracker.observe(600, T0);
-  const at = T0 + 90_000;
-  check('nilai berjalan 90 detik = 510', tracker.current(at) === 510, String(tracker.current(at)));
-  const read = tracker.observe(505, at);
-  check('bacaan 505 pada menit ke-1,5 diterima', read.action === 'accepted', `${read.action}/${read.reason}`);
-  check('limit mengikuti waktu', read.dropLimit === undefined || read.dropLimit > MAX_DROP_SECONDS);
-}
-
-section('Noise kecil tidak menggeser angka di layar');
-{
-  // Kalau anchor digeser ke setiap bacaan, digit terakhir timer akan maju-mundur tiap poll.
-  // Yang diuji bukan variabel internal anchor, tapi angka yang benar-benar dilihat penonton:
-  // harus selalu turun, dan tidak boleh pernah naik satu detik pun.
-  const tracker = createTracker();
-  tracker.observe(900, T0);
-  let rises = 0;
-  let wobble = 0;
-  let previous = 900;
-  for (let i = 1; i <= 60; i += 1) {
-    const noise = [0, 1, -1, 0, 1][i % 5];
-    tracker.observe(900 - i * 2 + noise, T0 + i * 2_000);
-    const shown = tracker.current(T0 + i * 2_000);
-    if (shown > previous) rises += 1;
-    // Selisih lebih dari 1 detik dari laju ideal (2 detik per poll) berarti anchor bergeser.
-    const ideal = 900 - i * 2;
-    if (Math.abs(shown - ideal) > 1) wobble += 1;
-    previous = shown;
-  }
-  check('angka tidak pernah naik', rises === 0, String(rises));
-  check('angka tidak pernah melenceng > 1 detik', wobble === 0, String(wobble));
-  check('nilai akhir tepat 780', tracker.current(T0 + 120_000) === 780, String(tracker.current(T0 + 120_000)));
-}
-
-section('Koreksi sungguhan tetap dibolehkan');
-{
-  // Poll yang terlewat atau timer sempat tidak terbaca bikin selisih jauh. Itu koreksi yang
-  // memang perlu, dan hanya di sini anchor digeser.
-  const tracker = createTracker();
-  tracker.observe(600, T0);
-  const at = T0 + 30_000;
-  check('nilai berjalan 570', tracker.current(at) === 570, String(tracker.current(at)));
-  const corrected = tracker.observe(540, at);
-  check('selisih jauh dikoreksi', corrected.action === 'corrected', corrected.action);
-  check('anchor digeser', corrected.shifted === true);
-  check('anchor pindah ke 540', tracker.state().seconds === 540, String(tracker.state().seconds));
-  check('hitung mundur lanjut dari 540', tracker.current(at + 5_000) === 535, String(tracker.current(at + 5_000)));
-
-  // Selisih di bawah ambang koreksi tidak boleh menggeser anchor.
-  const small = createTracker();
-  small.observe(600, T0);
-  const at2 = T0 + 30_000;
-  const tiny = small.observe(567, at2);
-  check('selisih kecil tidak menggeser anchor', tiny.shifted === false, String(tiny.shifted));
-  check('anchor tetap 600', small.state().seconds === 600, String(small.state().seconds));
-  check('ambang koreksi 10 detik dipakai', CORRECT_DRIFT_SECONDS === 10, String(CORRECT_DRIFT_SECONDS));
+  // Selisih satu detik pun harus langsung digeser ke bacaan operator, tanpa ambang.
+  const tiny = tracker.observe(570, T0 + 30_000);
+  check('selisih 30 detik langsung digeser', tracker.state().seconds === 570, String(tracker.state().seconds));
+  check('tidak ada flag shifted', !('shifted' in tiny), Object.keys(tiny).join(','));
+  check('reason tetap accepted', tiny.reason === 'accepted', tiny.reason);
+  check('MAX_DROP_SECONDS tidak lagi diekspor', globalThis.OcrTimer.MAX_DROP_SECONDS === undefined);
+  check('CORRECT_DRIFT_SECONDS tidak lagi diekspor', globalThis.OcrTimer.CORRECT_DRIFT_SECONDS === undefined);
 }
 
 section('Bacaan tidak terbaca dan di luar rentang');
@@ -206,9 +167,10 @@ section('reset: dipakai saat operator menekan Start untuk match baru');
 
 section('Konstanta sesuai spesifikasi');
 {
-  check('batas drop 60 detik', MAX_DROP_SECONDS === 60, String(MAX_DROP_SECONDS));
-  check('ambang koreksi 10 detik', CORRECT_DRIFT_SECONDS === 10, String(CORRECT_DRIFT_SECONDS));
   check('batas atas 3600 detik', MAX_SECONDS === 3600, String(MAX_SECONDS));
+  check('hanya empat alasan yang tersisa',
+    Object.keys(globalThis.OcrTimer.REASON_TEXT).sort().join(',') === 'accepted,anchor,backward,out_of_range,unreadable',
+    Object.keys(globalThis.OcrTimer.REASON_TEXT).sort().join(','));
 }
 
 console.log(`\n${passed} ok, ${failed} gagal`);

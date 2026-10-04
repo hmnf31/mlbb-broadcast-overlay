@@ -191,7 +191,7 @@ function renderRows() {
       delete confidence.dataset.low;
     }
 
-    // Baris berubah kuning kalau operator-who corrected angka: justru hal paling penting
+    // Baris berubah kuning kalau operator mengoreksi angka: justru hal paling penting
     // untuk dilihat sebelum push, karena itu nilai yang tidak lagi sama dengan bacaan.
     const differs = Boolean(reading) && finalValues[field] !== '' && Number(finalValues[field]) !== reading.value;
     row.dataset.diff = differs ? 'true' : 'false';

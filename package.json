@@ -12,7 +12,7 @@
     "test:control": "node scripts/test-control-panel.mjs",
     "test:profiles": "node scripts/test-multi-profile.mjs",
     "test:ocr": "node scripts/test-ocr-guard.mjs",
-    "test:ocr-timer": "node scripts/test-ocr-timer.mjs",
+    "test:ocr-timer": "node scripts/test-ocr-timer.mjs && node scripts/test-ocr-parse.mjs",
     "test:overlay": "node scripts/test-overlay-render.mjs",
     "test:d1": "node scripts/test-d1.mjs",
     "test:draft": "node scripts/test-draft-analytics.mjs && node scripts/test-draft-overlay.mjs",

@@ -366,8 +366,11 @@ async function readAllRois(worker) {
   const updates = {};
   for (const key of getActiveFields()) {
     status.textContent = `Membaca ${currentRegions[key].label}...`;
+    // Whitelist Tesseract untuk ROI timer. Hanya angka dan tanda titik dua: bentuk `mm:ss` sudah
+// satu-satunya yang diterima parser, jadi membiarkan `.` masuk hanya menambah bacaan yang pasti
+// ditolak dan memperlambat scan.
     await worker.setParameters({
-      tessedit_char_whitelist: key === 'timer' ? '0123456789:.' : '0123456789Kk,.',
+      tessedit_char_whitelist: key === 'timer' ? '0123456789:' : '0123456789Kk,.',
     });
     const result = await worker.recognize(getCrop(activeSource, currentRegions[key]));
     const rawText = result.data.text.trim();
@@ -388,8 +391,15 @@ async function readAllRois(worker) {
       results.append(resultCard);
     }
     const accepted = decision.accepted && decision.value !== null;
-    const shown = accepted ? decision.value : ocrGuard.values()[key];
-    const displayValue = key === 'timer' && shown !== undefined
+    // Timer dibaca dari tracker-nya sendiri, bukan dari ocrGuard: nilai yang tampil saat
+    // bacaan ditolak harus tetap angka yang sedang berjalan. Sebelumnya baris ini selalu
+    // memakai `ocrGuard.values()['timer']`, yang tidak pernah diisi, jadi setiap bacaan
+    // yang ditolak -- termasuk bacaan yang formatnya benar -- tampil sebagai "nilai: -".
+    // Itu membuat operator mengira OCR-nya tidak jalan padahal angkanya sudah tepat.
+    const shown = accepted
+      ? decision.value
+      : (key === 'timer' ? timerTracker?.current() ?? null : ocrGuard.values()[key]);
+    const displayValue = key === 'timer' && shown !== undefined && shown !== null
       ? `${Math.floor(shown / 60)}:${String(shown % 60).padStart(2, '0')}`
       : shown;
     resultCard.dataset.accepted = String(accepted);

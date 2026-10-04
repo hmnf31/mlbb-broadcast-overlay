@@ -63,13 +63,17 @@ Kit.fetchAux = async (unusedSlug, kind) => (
 );
 Kit.pushAux = async (unusedSlug, kind, value) => { auxPuts.push({ kind, value }); return { ok: true }; };
 const sentMessages = [];
+// Perintah yang benar-benar dikirim lewat socket. Dipakai untuk menguji tombol Start/Finish:
+// kalau tombolnya hanya mengubah tampilan lokal tanpa mengirim apa pun, angka di overlay tidak
+// akan pernah berubah dan operator tidak punya cara Start sama sekali.
+const sentOverSocket = [];
 window.LiveSocket = {
   create: (options) => {
     sentMessages.push(options);
     return {
       start: async () => true,
       stop: () => {},
-      send: () => 'sent',
+      send: (message) => { sentOverSocket.push(message); return 'sent'; },
       reconnectNow: () => {},
       get status() { return 'online'; },
     };
@@ -509,6 +513,73 @@ check('Turtle tidak masuk daftar field OCR aktif',
   JSON.stringify(window.eval('getConfig().ocr.enabled')));
 check('Turtle tetap punya nilai di match state',
   typeof window.eval('getConfig().match.turtleBlue') === 'number');
+
+section('Tombol Start / Finish match');
+{
+  const startButton = document.getElementById('match-start');
+  const finishButton = document.getElementById('match-finish');
+  const badge = document.getElementById('match-status');
+  check('tombol Start ada', Boolean(startButton));
+  check('tombol Finish ada', Boolean(finishButton));
+  check('badge status ada', Boolean(badge));
+
+  // Simulasi match yang sedang berjalan supaya ada angka untuk dinolkan.
+  window.localStorage.setItem('mlbb_overlay_config_testslug12345', JSON.stringify({
+    match: { status: 'live', timer: 742, blueKills: 11, redKills: 8, blueGold: 41230, redGold: 38900, turtleBlue: 1, towerBlue: 3, towerRed: 2, lordBlue: 1 },
+  }));
+  window.eval('populateForm(getConfig())');
+
+  sentOverSocket.length = 0;
+  startButton.dispatchEvent(new window.Event('click', { bubbles: true }));
+  check('Start mengirim perintah start_match',
+    sentOverSocket.some((m) => m?.type === 'command' && m.command === 'start_match'),
+    JSON.stringify(sentOverSocket.slice(-1)));
+  check('badge jadi Match berjalan', badge.dataset.status === 'live', badge.dataset.status);
+  check('label badge terbaca', badge.textContent === 'Match berjalan', badge.textContent);
+
+  // Form harus ikut kosong: kalau tidak, operator melihat angka match lama di panel padahal
+  // overlay sudah menodol nol, dan dua tampilan itu bertentangan.
+  check('input timer jadi 0', document.querySelector('[name="timer"]').value === '0', document.querySelector('[name="timer"]').value);
+  check('input kill biru jadi 0', document.querySelector('[name="blueKills"]').value === '0', document.querySelector('[name="blueKills"]').value);
+  check('input gold biru jadi 0', document.querySelector('[name="blueGold"]').value === '0', document.querySelector('[name="blueGold"]').value);
+  check('input tower biru jadi 0', document.querySelector('[name="towerBlue"]').value === '0', document.querySelector('[name="towerBlue"]').value);
+
+  sentOverSocket.length = 0;
+  finishButton.dispatchEvent(new window.Event('click', { bubbles: true }));
+  check('Finish mengirim perintah finish_match',
+    sentOverSocket.some((m) => m?.type === 'command' && m.command === 'finish_match'),
+    JSON.stringify(sentOverSocket.slice(-1)));
+  check('badge jadi Selesai', badge.dataset.status === 'finished', badge.dataset.status);
+
+  // Snapshot dari server adalah sumber kebenaran: tab lain atau reload harus sinkron.
+  const socketOptions = sentMessages[sentMessages.length - 1];
+  socketOptions.onMessage({ type: 'snapshot', payload: { match: { status: 'live' } } });
+  check('badge ikut snapshot server', badge.dataset.status === 'live', badge.dataset.status);
+  socketOptions.onMessage({ type: 'snapshot', payload: { match: { status: 'ngawur' } } });
+  check('status ngawur jatuh ke idle', badge.dataset.status === 'idle', badge.dataset.status);
+
+  // Start lagi = match baru, jadi harus tetap mengirim start_match dan angka tetap 0.
+  sentOverSocket.length = 0;
+  startButton.dispatchEvent(new window.Event('click', { bubbles: true }));
+  check('Start kedua mengirim start_match lagi',
+    sentOverSocket.some((m) => m?.type === 'command' && m.command === 'start_match'));
+  check('Start kedua angka tetap 0', document.querySelector('[name="timer"]').value === '0');
+
+  check('tidak ada error di halaman match control', errors.length === 0, errors.slice(0, 2).join(' | '));
+
+  // Status tidak boleh ikut terbawa payload setting biasa. Kalau iya, operator yang sekadar
+  // mengganti ukuran font akan unknowingly menghentikan timer match yang sedang berjalan,
+  // karena panel menuliskan kembali status 'idle' dari localStorage.
+  const livePayload = window.eval('buildLivePayload(getConfig())');
+  check('payload setting tidak membawa status',
+    !('status' in livePayload.match),
+    Object.keys(livePayload.match).join(','));
+  check('payload setting tetap membawa angka',
+    'timer' in livePayload.match && 'blueGold' in livePayload.match);
+  check('payload setting tidak membawa timerRunning',
+    !('timerRunning' in livePayload.match),
+    Object.keys(livePayload.match).join(','));
+}
 
 console.log(`\n========================================`);
 console.log(`  ${passed} passed, ${failed} failed`);

@@ -78,7 +78,17 @@ const ocrSocket = window.LiveSocket.create({
       liveLink.textContent = liveLinkState;
     }
   },
-  onMessage: () => {},
+  onMessage: (message) => {
+    if (message?.type !== 'snapshot') return;
+    const match = message.payload?.match || {};
+    // Match baru dimulai dari nol (tombol Start di control panel). Tracker WAJIB dilepas di
+    // sini: anchor lama masih memegang sisa match sebelumnya, jadi bacaan timer berikutnya
+    // (misal 15:00) akan dianggap "mundur" dibanding anchor lama dan ditolak terus-menerus.
+    // Tanpa ini operator tidak akan pernah bisa menjalankan match kedua.
+    if (match.status === 'live' && Number(match.timer) === 0) {
+      timerTracker?.reset();
+    }
+  },
 });
 
 ocrSocket.start();
@@ -407,9 +417,12 @@ function persistOcrResult(updates) {
   localStorage.setItem(configKey, JSON.stringify(savedConfig));
 }
 
-// Selalu lampirkan anchor timer ke kiriman. Tanpa `timerAt` dan `timerRunning`, worker akan
-// menganchor ulang sendiri tiap kiriman dan angka timer di overlay melompat maju-mundur
-// setiap detik.
+// Selalu lampirkan anchor timer ke kiriman. Tanpa `timerAt`, worker akan menganchor ulang
+// sendiri setiap kiriman dan angka timer di overlay melompat maju-mundur.
+//
+// `timerRunning` SENGAJA TIDAK dikirim. Worker yang memilikinya: nilainya diturunkan dari
+// `match.status` yang diubah tombol Start/Finish. Kalau OCR ikut mengirimnya, dua sumber
+// kebenaran akan bertengkar dan salah satu akan ditimpa diam-diam.
 function withTimerAnchor(updates) {
   if (!timerTracker || updates.timer === undefined) return updates;
   const snapshot = timerTracker.state();
@@ -418,7 +431,6 @@ function withTimerAnchor(updates) {
     ...updates,
     timer: snapshot.seconds,
     timerAt: snapshot.anchorAt,
-    timerRunning: snapshot.running,
   };
 }
 

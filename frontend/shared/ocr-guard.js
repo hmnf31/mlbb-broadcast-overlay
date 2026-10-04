@@ -26,6 +26,17 @@
     towerRed: { kind: 'objective', shape: 'int' },
   };
 
+  // Gold hanya boleh naik, dan tidak boleh meloncat dari puluhan ribu ke ratusan ribu dalam
+  // sekali poll. Batasnya longgar supaya fase awal tetap bisa masuk: dari 0 ke 2.500 itu hal
+  // wajar, jadi lantai playground-nya cukup tinggi untuk menerimanya.
+  const GOLD_JUMP_RATIO = 1.5;
+  const GOLD_MIN_JUMP = 12000;
+  // Objective (Lord/Tower) berubah sangat jarang dan sudah diurus operator secara manual, jadi
+  // tidak ada filter temporal sama sekali: apa pun yang terbaca langsung dipakai. Satu-satunya
+  // penolakan adalah angka yang jelas-jelas sampah (misal "99" dari karakter lain yang terbaca),
+  // dan batasnya dibuat longgar supaya tidak pernah menahan nilai yang mungkin sah.
+  const OBJECTIVE_MAX = 20;
+
   const REASON_TEXT = {
     accepted: 'diterima',
     same: 'nilai sama',
@@ -39,10 +50,10 @@
     majority: 'menunggu majority 2 dari 3',
   };
 
+  // Hanya field 'kills' yang lagi memakai batas lonjakan berbasis waktu. Gold, timer, dan
+  // objective sudah punya filter sendiri di atas, jadi cabang untuk mereka di sini mati.
   function maxDeltaOf(rule, elapsedSec) {
     if (rule.kind === 'kills') return clamp(Math.ceil(elapsedSec / 2.5), 1, 5);
-    if (rule.kind === 'gold') return Math.max(1200, Math.round(elapsedSec * 25));
-    if (rule.kind === 'timer') return 2;
     return 3;
   }
 
@@ -137,24 +148,55 @@
       }
 
       if (rule.kind === 'timer') {
-        // Timer GALAT memakai aturan monoton di bawah. Aturan itu menganggap angka turun
-        // sebagai salah baca, padahal timer MLBB memang hitung mundur dan berubah tiap
-        // detik: setiap bacaan valid akan ditolak sebagai 'dropped'.
+        // Timer TIDAK boleh memakai aturan monoton di bawah: aturan itu menganggap angka turun
+        // sebagai salah baca, padahal timer MLBB memang hitung mundur dan berubah tiap detik,
+        // jadi setiap bacaan valid akan ditolak sebagai 'dropped'.
         //
-        // Jadi untuk timer guard ini hanya menjaga bentuk, rentang, dan confidence.
-        // Keputusan apakah angka diterima, ditunggu, atau dianggap pause milik
-        // OcrTimer, yang menganchor satu bacaan lalu menghitung sendiri -- satu-satunya
-        // cara supaya angka timer di layar tidak berkedip.
-        if (state.values.timer === undefined) {
-          state.values.timer = value;
-          state.samples.timer = [value];
-          state.lastAt = { ...(state.lastAt || {}), timer: at };
-          return finish(true, 'accepted');
-        }
-        if (value === state.values.timer) return finish(true, 'same');
-        state.values.timer = value;
-        state.lastAt = { ...(state.lastAt || {}), timer: at };
+        // Guard hanya menjaga bentuk, rentang, dan confidence. Seluruh keputusan temporal
+        // (anchor, tidak mundur, koreksi) milik OcrTimer, yang menganchor satu bacaan lalu
+        // menghitung sendiri -- satu-satunya cara supaya timer tidak diam di layar.
         return finish(true, 'accepted');
+      }
+
+      // Gold: dua filter saja, sesuai yang diminta operator.
+      //
+      //   1. Tidak pernah turun. Gold hanya bisa bertambah.
+      //   2. Tidak boleh meloncat dari puluhan ribu ke ratusan ribu dalam sekali poll.
+      //
+      // sengaja tidak memakai majority vote atau "tunggu konfirmasi" yang dulu ada di sini:
+      // keduanya membuat angka gold tertahan beberapa detik setelah sebenarnya sudah benar,
+      // dan operator lebih suka angka yang sudah naik dengan filter sederhana daripada angka
+      // yang "aman" tapi tidak bergerak.
+      if (rule.kind === 'gold') {
+        if (previous === undefined || value === previous) {
+          state.values[field] = value;
+          state.lastAt = { ...(state.lastAt || {}), [field]: at };
+          return finish(true, previous === undefined ? 'accepted' : 'same');
+        }
+        if (value < previous) return finish(false, 'dropped', { previous });
+
+        const jumpLimit = Math.max(GOLD_MIN_JUMP, previous * GOLD_JUMP_RATIO);
+        if (value - previous > jumpLimit) {
+          return finish(false, 'jump', { previous, jumpLimit });
+        }
+        state.values[field] = value;
+        state.lastAt = { ...(state.lastAt || {}), [field]: at };
+        return finish(true, 'accepted', { delta: value - previous });
+      }
+
+      // Objective (Lord/Tower): terima apa pun yang masuk akal. Kenaikan dari 0 ke 1 ke 2 terjadi
+      // sangat jarang, jadi tidak ada gunanya menuntut bacaan sering atau konsisten; yang penting
+      // angka yang tampil benar saat terbaca.
+      if (rule.kind === 'objective') {
+        if (value > OBJECTIVE_MAX) return finish(false, 'range', { max: OBJECTIVE_MAX });
+        if (previous === undefined || value === previous) {
+          state.values[field] = value;
+          state.lastAt = { ...(state.lastAt || {}), [field]: at };
+          return finish(true, previous === undefined ? 'accepted' : 'same');
+        }
+        state.values[field] = value;
+        state.lastAt = { ...(state.lastAt || {}), [field]: at };
+        return finish(true, 'accepted', { delta: value - previous });
       }
 
       if (previous !== undefined) {

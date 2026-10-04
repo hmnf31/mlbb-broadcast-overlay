@@ -74,6 +74,8 @@ function deepMerge(base, updates) {
 function mergeState(state) {
   const merged = stripImageSources(deepMerge(defaultMatchState(), state || {}));
   merged.match.bo2 = normalizeBo2State(merged.match.bo2);
+  normalizeTimerAnchor(merged.match);
+  normalizeMatchStatus(merged.match);
   return merged;
 }
 
@@ -122,11 +124,15 @@ function defaultMatchState() {
   return {
     match: {
       id: 'match-001',
-      status: 'live',
+      // Status match dikendalikan tombol Start/Finish di control panel:
+      //   idle     -> belum ada match berjalan; semua angka 0 dan timer diam
+      //   live     -> match berjalan; timer menghitung mundur
+      //   finished -> match selesai; semua angka ditahan di nilai terakhir
+      status: 'idle',
       timer: 0,
       // Anchor timer untuk tick lokal di overlay. `timer` adalah nilai pada detik `timerAt`,
       // jadi overlay bisa menghitung sendiri tiap frame tanpa ada push tiap detik dari server.
-      // `timerRunning` false berarti game sedang pause dan angka ditahan.
+      // `timerRunning` false berarti angka ditahan (belum start atau sudah finish).
       timerAt: null,
       timerRunning: false,
       series: { best_of: 5, score: { blue: 0, red: 0 } },
@@ -465,6 +471,25 @@ function stripImageSources(state) {
   };
 }
 
+// Angka yang di-nol-kan saat operator menekan Start. Ini murni angka pertandingan: nama tim,
+// nama turnamen, logo, dan semua setelan visual TIDAK boleh tersentuh, karena operator sudah
+// menyiapkannya sebelum match dan menghapusnya akan memaksa setup ulang tiap match.
+const SCORE_FIELDS = [
+  'timer', 'blueKills', 'redKills', 'blueGold', 'redGold', 'goldDiff',
+  'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed',
+];
+
+const MATCH_STATUSES = new Set(['idle', 'live', 'finished']);
+
+function normalizeMatchStatus(match) {
+  match.status = MATCH_STATUSES.has(match.status) ? match.status : 'idle';
+  // `timerRunning` tidak boleh bertentangan dengan status: match yang sudah selesai atau belum
+  // mulai tidak mungkin sedang menghitung mundur. Menormalkan di sini membuat dua sumber
+  // kebenaran tidak bisa bertentangan.
+  match.timerRunning = match.status === 'live';
+  return match;
+}
+
 // Timer disimpan sebagai anchor, bukan sebagai angka yang diedit setiap detik: `timer` adalah
 // nilai pada detik `timerAt`, dan overlay menghitung selisihnya sendiri. Ini yang membuat
 // timer bisa berjalan mulus tanpa ada push tiap detik.
@@ -475,7 +500,6 @@ function stripImageSources(state) {
 function normalizeTimerAnchor(match, incoming) {
   const timer = Number(match.timer);
   match.timer = Number.isFinite(timer) ? Math.max(0, Math.round(timer)) : 0;
-  match.timerRunning = match.timerRunning === true;
   const sentAt = Number(incoming?.timerAt);
   if (Number.isFinite(sentAt) && sentAt > 0) {
     match.timerAt = Math.round(sentAt);
@@ -493,6 +517,7 @@ function applyUpdate(state, assets, payload) {
   // diturunkan jadi titik yang salah di overlay.
   next.match.bo2 = normalizeBo2State(next.match.bo2);
   normalizeTimerAnchor(next.match, payload?.match);
+  normalizeMatchStatus(next.match);
   const presentation = payload?.presentation || {};
   let assetsChanged = false;
 
@@ -1011,7 +1036,7 @@ export class ProfileStore extends DurableObject {
       const readings = {};
       const rejected = [];
       // Anchor timer dikirim DI DALAM objek readings (satu kiriman untuk semua angka), tapi
-      // itu bukan field bacaan: `timerAt` dan `timerRunning` adalah metadata cara menghitung
+      // itu bukan field bacaan: `timerAt` adalah metadata cara menghitung
       // angka timer. Kalau ikut disaring loop bawah, keduanya masuk daftar `rejected` dan
       // operator melihat "field terkunci diabaikan" padahal tidak ada yang dikunci.
       const { timerAt, timerRunning, ...ocrReadings } = isPlainObject(parsed.value.readings)
@@ -1039,7 +1064,7 @@ export class ProfileStore extends DurableObject {
         readings[field] = value;
       }
 
-      // Anchor timer (`timerAt` + `timerRunning`) sengaja DI LUAR `OCR_FIELDS`: itu bukan
+      // Anchor timer (`timerAt`) sengaja DI LUAR `OCR_FIELDS`: itu bukan
       // bacaan field, melainkan metadata cara menghitung angka timer. Kalau ikut disaring
       // loop di atas, anchor akan hilang, worker menganchor ulang `timer` ke waktu receipt
       // tiap kiriman, dan angka timer di overlay melompat maju-mundur setiap beberapa detik --
@@ -1048,11 +1073,12 @@ export class ProfileStore extends DurableObject {
       // Field Lock tetap berlaku: kalau `timer` terkunci, anchor pun tidak boleh ikut berubah,
       // karena anchor tanpa nilai yang diizinkan akan menggeser angka yang dikunci operator.
       const anchorPatch = readings.timer !== undefined
-        ? normalizeTimerAnchor({ timer: readings.timer }, { timerAt, timerRunning })
+        ? normalizeTimerAnchor({ timer: readings.timer }, { timerAt })
         : null;
 
       // Satu persist untuk angka dan anchor sekaligus: dua persist berarti dua kali tulis
       // storage dan dua kali siar, dan client kedua bisa sempat melihat angka tanpa anchor.
+      // `timerRunning` tidak ikut karena applyUpdate menurunkannya sendiri dari `match.status`.
       const patch = Object.keys(readings).length ? { match: readings } : null;
       if (anchorPatch) {
         await this.persist({
@@ -1060,7 +1086,6 @@ export class ProfileStore extends DurableObject {
             ...(patch?.match || {}),
             timer: anchorPatch.timer,
             timerAt: anchorPatch.timerAt,
-            timerRunning: anchorPatch.timerRunning,
           },
         });
         await this.touch();
@@ -1207,6 +1232,29 @@ const GENERIC_AUX_KINDS = ['result', 'players', 'draft'];
       nextState = stripImageSources(structuredClone(defaultMatchState()));
       nextAssets = normalizeAssets(null);
       assetsChanged = true;
+    } else if (envelope?.type === 'command' && envelope.command === 'start_match') {
+      // Start = match baru. Semua angka pertandingan dinolkan, seri dan objetivo ikut bersih,
+      // lalu timer langsung aktif. Yang TIDAK disentuh: nama tim, turnamen, logo, dan setelan
+      // visual, karena itu disetting operator sebelum match dan menghapusnya akan memaksa
+      // setup ulang tiap kali.
+      const match = { ...state.match };
+      for (const field of SCORE_FIELDS) match[field] = 0;
+      match.series = { ...(match.series || {}), score: { blue: 0, red: 0 } };
+      match.bo2 = normalizeBo2State({ ...(match.bo2 || {}), games: [] });
+      match.objective = {
+        turret: { blue: 0, red: 0 },
+        turtle: { blue: 0, red: 0 },
+        lord: { blue: 0, red: 0 },
+      };
+      match.status = 'live';
+      match.timerAt = Date.now();
+      match.timerRunning = true;
+      nextState = { ...state, match: normalizeMatchStatus(match) };
+    } else if (envelope?.type === 'command' && envelope.command === 'finish_match') {
+      // Finish = berhentikan semuanya, tapi angkanya DITAHAN di nilai terakhir supaya operator
+      // masih bisa lihat hasil akhir. Start lagi nanti yang mengnolkan.
+      const match = { ...state.match, status: 'finished' };
+      nextState = { ...state, match: normalizeMatchStatus(match) };
     } else if (envelope?.type === 'command' && envelope.command === 'reset_aux') {
       const kind = envelope.kind;
       const aux = AUX_KINDS[kind];

@@ -70,6 +70,15 @@
       .connection-badge[data-state='connecting'] { background: #ffd76a; }
       .connection-badge[data-state='offline'] { background: #ff7a7a; }
       .connection-badge[data-retry]:hover { filter: brightness(1.08); }
+      .match-control { margin: 14px 0 4px; padding: 14px 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(255,255,255,.03); }
+      .match-control h2 { margin: 0 0 6px; font-size: .95rem; }
+      .match-control p { margin: 0 0 12px; font-size: .82rem; }
+      .match-control-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .match-control-row button { min-width: 128px; }
+      .match-status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px; font-size: .8rem; font-weight: 700; background: #6b7d8c; color: #061621; }
+      .match-status-badge::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: rgba(6,22,33,.55); }
+      .match-status-badge[data-status='live'] { background: #4ade80; }
+      .match-status-badge[data-status='finished'] { background: #ffd76a; }
     .profile-banner {
       display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
       margin-top: 12px; padding: 12px 14px; border-radius: 12px;
@@ -209,6 +218,19 @@
           <button type="button" class="connection-badge" id="connection-badge" data-state="connecting" data-retry="1" title="Klik untuk mencoba menyambung ulang">Menyambung ke live server...</button>
           <span class="muted" id="connection-detail">Belum tersambung.</span>
         </div>
+        <section class="match-control" aria-labelledby="match-control-title">
+          <h2 id="match-control-title">Kontrol Match</h2>
+          <p class="muted">
+            <strong>Start</strong> memulai match baru: semua angka dikembalikan ke 0 dan timer mulai berjalan.
+            <strong>Finish</strong> menghentikan semuanya, angka ditahan di nilai terakhir.
+            Tekan <strong>Start</strong> lagi untuk match berikutnya dan angka kembali ke 0.
+          </p>
+          <div class="match-control-row">
+            <button type="button" id="match-start" class="primary">Mulai Match</button>
+            <button type="button" id="match-finish" class="secondary">Finish</button>
+            <span class="match-status-badge" id="match-status" data-status="idle">Belum mulai</span>
+          </div>
+        </section>
         <nav class="profile-nav" id="profile-nav" aria-label="Halaman profil ini"></nav>
         <div class="profile-banner" id="profile-banner" hidden>
           <span id="profile-banner-text"></span>
@@ -232,18 +254,18 @@
           <label>Logo Tim Merah (URL / src) <input name="redLogo" type="text" value="/assets/teams/red-viper.svg" /></label>
           <label>Lebar PNG header (px) <input name="headerWidth" type="number" min="50" max="1280" step="10" value="1280" /></label>
           <label>Skala PNG header <input id="header-width-slider" type="range" min="50" max="1280" step="10" value="1280" /></label>
-          <label>Waktu Game (detik) <input name="timer" type="number" value="1325" /></label>
-          <label>Kill Tim Biru <input name="blueKills" type="number" value="9" /></label>
-          <label>Kill Tim Merah <input name="redKills" type="number" value="7" /></label>
-          <label>Gold Tim Biru <input name="blueGold" type="number" value="18840" /></label>
-          <label>Gold Tim Merah <input name="redGold" type="number" value="17520" /></label>
-          
-          <label>Turtle Biru <input name="turtleBlue" type="number" value="1" /></label>
+          <label>Waktu Game (detik) <input name="timer" type="number" value="0" /></label>
+          <label>Kill Tim Biru <input name="blueKills" type="number" value="0" /></label>
+          <label>Kill Tim Merah <input name="redKills" type="number" value="0" /></label>
+          <label>Gold Tim Biru <input name="blueGold" type="number" value="0" /></label>
+          <label>Gold Tim Merah <input name="redGold" type="number" value="0" /></label>
+
+          <label>Turtle Biru <input name="turtleBlue" type="number" value="0" /></label>
           <label>Turtle Merah <input name="turtleRed" type="number" value="0" /></label>
-          <label>Lord Biru <input name="lordBlue" type="number" value="1" /></label>
+          <label>Lord Biru <input name="lordBlue" type="number" value="0" /></label>
           <label>Lord Merah <input name="lordRed" type="number" value="0" /></label>
-          <label>Tower Biru <input name="towerBlue" type="number" value="3" /></label>
-          <label>Tower Merah <input name="towerRed" type="number" value="2" /></label>
+          <label>Tower Biru <input name="towerBlue" type="number" value="0" /></label>
+          <label>Tower Merah <input name="towerRed" type="number" value="0" /></label>
           <!-- Select Mode Turtle/Lord/Tower TIDAK lagi ada di sini. Semula hidup di baris ini,
                sekitar 220 baris di atas tombol +/- yang mereka kendalikan, jadi operator tidak
                pernah menemukan switch-nya dan tombolnya terlihat greyed begitu saja. Sekarang

@@ -12,17 +12,19 @@
     { id: 'customImage1', type: 'image', name: 'Gambar custom 1', src: '', width: 160, height: 90 },
   ],
   match: {
-    timer: 1325,
-    blueKills: 9,
-    redKills: 7,
-    blueGold: 18840,
-    redGold: 17520,
-    turtleBlue: 1,
+    // `status` mengikuti tombol Start/Finish: idle -> live -> finished.
+    status: 'idle',
+    timer: 0,
+    blueKills: 0,
+    redKills: 0,
+    blueGold: 0,
+    redGold: 0,
+    turtleBlue: 0,
     turtleRed: 0,
-    lordBlue: 1,
+    lordBlue: 0,
     lordRed: 0,
-    towerBlue: 3,
-    towerRed: 2,
+    towerBlue: 0,
+    towerRed: 0,
     bo2: { enabled: false, bestOf: 2, games: [{ winner: null }, { winner: null }] },
   },
   style: {
@@ -183,6 +185,15 @@ const ocrEditor = document.getElementById('ocr-editor');
 const ocrFieldRows = document.getElementById('ocr-field-rows');
 const ocrEnabled = document.getElementById('ocr-enabled');
 const resultEditor = document.getElementById('result-editor');
+const matchStartButton = document.getElementById('match-start');
+const matchFinishButton = document.getElementById('match-finish');
+const matchStatusBadge = document.getElementById('match-status');
+
+const MATCH_STATUS_LABEL = {
+  idle: 'Belum mulai',
+  live: 'Match berjalan',
+  finished: 'Selesai',
+};
 
 const RESULT_FIELDS = [
   ['result-visible', 'visible', 'bool'],
@@ -1081,6 +1092,10 @@ const liveSocket = window.LiveSocket.create({
   onMessage: (message) => {
     if (message?.type === 'snapshot') {
       connectedClients = message.clients ?? connectedClients;
+      // Status match dictates what the Start/Finish buttons show, and the operator often has
+      // several tabs open. Without this the badge would just be whatever this tab last clicked,
+      // so it'd contradict the actual state on air.
+      renderMatchStatus(message.payload?.match?.status);
       if (!assetsSyncedForConnection) {
         assetsSyncedForConnection = true;
         pushLiveAssets(getConfig(), true);
@@ -1170,8 +1185,14 @@ function buildLivePayload(config) {
   const customItems = (config.customItems || []).map((item) => (
     item.type === 'image' ? { ...item, src: '' } : { ...item }
   ));
+  // `status` SENGAJA TIDAK ikut dikirim. Status match hanya boleh berubah lewat perintah
+  // Start/Finish, dan nilainya milik server. Kalau ikut terkirim dari localStorage, setiap kali
+  // operator menyimpan setting -- misalnya sekadar mengganti ukuran font --panel akan
+  // menuliskan kembali status 'idle' yang ada di browsernya, dan timer match yang sedang
+  // berjalan akan berhenti di tengah pertandingan.
+  const { status: _ignoredStatus, ...matchWithoutStatus } = config.match || {};
   return {
-    match: config.match,
+    match: matchWithoutStatus,
     teams: { blue: config.blueTeam, red: config.redTeam },
     presentation: {
       tournamentName: config.tournamentName,
@@ -1783,6 +1804,52 @@ resetButton.addEventListener('click', () => {
   renderPreview(defaultConfig);
   status.textContent = 'Nilai default dipulihkan.';
 });
+
+function renderMatchStatus(value) {
+  const state = MATCH_STATUS_LABEL[value] ? value : 'idle';
+  if (matchStatusBadge) {
+    matchStatusBadge.dataset.status = state;
+    matchStatusBadge.textContent = MATCH_STATUS_LABEL[state];
+  }
+  return state;
+}
+
+// Kirim perintah Start/Finish lewat socket yang sama dengan update biasa, supaya antrean
+// offline bekerja persis seperti perubahan setting lain: tombol ditekan saat socket putus
+// tidak berarti perintahnya hilang.
+function sendMatchCommand(command, successMessage) {
+  const result = liveSocket.send({ type: 'command', command });
+  if (result === 'rejected') {
+    status.textContent = REJECTED_MESSAGE;
+    return;
+  }
+  renderMatchStatus(command === 'start_match' ? 'live' : 'finished');
+  status.textContent = result === 'sent'
+    ? successMessage
+    : `${successMessage} WebSocket belum tersambung, perintah diantre dan dikirim otomatis.`;
+}
+
+matchStartButton?.addEventListener('click', () => {
+  sendMatchCommand('start_match', 'Match dimulai: angka kembali ke 0 dan timer berjalan.');
+  // Form di panel ini ikut dinolkan supaya operator langsung melihat angka 0, bukan angka
+  // milik match yang tadi. Tanpa ini tampilan form dan overlay akan berbeda beberapa detik.
+  populateForm({ ...getConfig(), match: { ...getConfig().match, ...zeroedMatchFields() } });
+  renderPreview(getConfig());
+});
+
+matchFinishButton?.addEventListener('click', () => {
+  sendMatchCommand('finish_match', 'Match selesai: semua angka ditahan.');
+});
+
+function zeroedMatchFields() {
+  const zeroed = {};
+  for (const field of ['timer', 'blueKills', 'redKills', 'blueGold', 'redGold', 'goldDiff', 'turtleBlue', 'turtleRed', 'lordBlue', 'lordRed', 'towerBlue', 'towerRed']) {
+    zeroed[field] = 0;
+  }
+  return zeroed;
+}
+
+renderMatchStatus(getConfig().match?.status);
 
 connectionBadge?.addEventListener('click', () => {
   assetsSyncedForConnection = false;

@@ -1,219 +1,147 @@
-// Tracker timer untuk OCR.
+// Timer untuk OCR.
 //
-// Timer MLBB ditulis mm:ss dan BERJALAN tiap detik, jadi membacanya dengan OCR berulang
-// itu memang tidak akan pernah stabil: setiap siklus angkanya sudah berubah, dan satu
-// bacaan salah langsung terpakai. Akibatnya angka timer di overlay berkedip atau melompat
-// beberapa detik, dan itu justru field yang paling terlihat oleh penonton.
+// Aturan yang dipakai operator, dan hanya itu:
 //
-// Aturannya di sini: timer dibaca sekali untuk membuat anchor, lalu BERJALAN sendiri secara
-// lokal. OCR hanya dipakai lagi kalau lokal dan OCR menyimpang terus-menerus -- dalam
-// praktik itu berarti game sedang di-pause. Baru setelah simpangan bertahan 10 detik
-// bacaan OCR diterima sebagai anchor baru, jadi satu salah baca tidak pernah langsung
-// diterima.
+//   1. Bacaan pertama yang valid LANGSUNG jadi anchor dan timer langsung berjalan. Tidak ada
+//      lagi tahap verifikasi yang menahan angka: dulu timer menunggu grace 10 detik sebelum
+//      bergerak, jadi di layar terlihat diam padahal bacaan pertamanya sudah benar.
+//   2. Timer tidak pernah mundur. Angkanya hanya boleh turun.
+//   3. Tidak ada logika pause sama sekali. Kalau operator mau menahan waktu, itu urusan
+//      tombol Start/Finish di control panel, bukan tebakan dari OCR.
+//
+// Dua aturan tolak, dan hanya dua:
+//
+//   - Bacaan DI ATAS nilai yang sedang berjalan = waktu mundur. Laguna karena "10:30"
+//     salah terbaca jadi "18:30".
+//   - Bacaan jauh DI BAWAH nilai yang sedang berjalan = salah baca. Laguna "10:30" jadi
+//     "1:30". Timer turun paling banyak satu detik per detik, jadi selisih sebesar itu
+//     mustahil terjadi di antara dua poll OCR.
 //
 // Modul ini terpisah dari halaman debug supaya aturannya bisa diuji tanpa browser, dan
 // dipakai juga oleh panel verifikasi supaya keduanya tidak bisa berbeda.
 (function (root) {
-  // OCR mm:ss biasanya meleset 1-3 detik. Selama simpangan selama ini, angka lokal sudah
-  // dianggap benar dan tidak ada yang dikirim.
-  const TOLERANCE_SECONDS = 3;
-  // Simpangan harus bertahan selama ini sebelum dianggap pause nyata. Beberapa detik saja
-  // terlalu pendek: satu frame buram atau satu salah baca sudah cukup untuk memicu koreksi.
-  const PAUSE_GRACE_MS = 10000;
-  // RESYNC_SECONDS dipakai sebagai ambang "penyimpangan berarti" untuk laporan ke server, bukan
-  // sebagai ambang pengatchet anchor lokal: anchor lokal sengaja hanya digeser saat bacaan
-  // menyimpang terus-menerus, supaya angka di layar tetap mulus.
-  const RESYNC_SECONDS = 2;
-  // Resume tidak memakai grace 10 detik. Setelah pause, nilai yang diharapkan beku, jadi
-  // penurunan OCR adalah bukti yang jauh lebih bersih daripada simpangan: satu bacaan
-  // turun berarti timer bergerak, dan dua bacaan turun beruntun hampir tidak mungkin salah
-  // baca. Cukup dua, supaya resume tidak menambah 10 detik delay yang terasa di layar.
-  const RESUME_CONFIRM_READS = 2;
+  // Seberapa jauh turun masih dianggap mungkin. Timer turun 1 detik per detik; dua poll OCR
+  // berselang beberapa detik, jadi 60 detik sudah jauh lebih longgar dari fisika game. Yang
+  // ditolak hanya lompatan yang jelas salah baca, bukan selisih kecil.
+  const MAX_DROP_SECONDS = 60;
+  // Selisih sebesar ini baru dianggap koreksi sungguhan, bukan noise. Di bawahnya anchor
+  // dibiarkan, supaya digit terakhir timer tidak berkedip.
+  const CORRECT_DRIFT_SECONDS = 10;
+  // Batas atas absurdity: timer MLBB tidak pernah lebih dari 3600 detik (1 jam).
+  const MAX_SECONDS = 3600;
 
   const REASON_TEXT = {
-    anchor: 'anchor pertama dari OCR',
-    resync: 'selaras ulang dengan bacaan OCR',
-    paused: 'masih pause, angka ditahan',
-    pending: 'simpangan belum cukup lama, ditunggu',
-    pause: 'timer berhenti 10 detik, dianggap pause',
-    resume: 'timer berjalan lagi setelah pause',
-    correct: 'simpangan lama dikoreksi ke bacaan OCR',
+    anchor: 'anchor pertama dari OCR, timer mulai jalan',
+    accepted: 'bacaan diterima, timer diselaraskan',
+    corrected: 'selisih jauh dikoreksi ke bacaan OCR',
     unreadable: 'bacaan timer tidak terbaca',
-    unchanged: 'nilai sama, tidak ada yang berubah',
+    backward: 'bacaan lebih besar dari waktu berjalan, ditolak',
+    misread_drop: 'bacaan jauh lebih kecil dari waktu berjalan, ditolak',
+    out_of_range: 'di luar rentang timer',
   };
 
   function createTracker(options = {}) {
-    const toleranceSeconds = Number.isFinite(options.toleranceSeconds)
-      ? options.toleranceSeconds
-      : TOLERANCE_SECONDS;
-    const pauseGraceMs = Number.isFinite(options.pauseGraceMs) ? options.pauseGraceMs : PAUSE_GRACE_MS;
-    const resyncSeconds = Number.isFinite(options.resyncSeconds) ? options.resyncSeconds : RESYNC_SECONDS;
+    const maxDropSeconds = Number.isFinite(options.maxDropSeconds) ? options.maxDropSeconds : MAX_DROP_SECONDS;
+    const correctDriftSeconds = Number.isFinite(options.correctDriftSeconds)
+      ? options.correctDriftSeconds
+      : CORRECT_DRIFT_SECONDS;
 
-    let seconds = Number.isFinite(options.seconds) ? options.seconds : null;
-    let running = options.running !== false && seconds !== null;
-    let anchorAt = Number.isFinite(options.anchorAt) ? options.anchorAt : null;
-    // Kapan simpangan besar pertama terlihat. null = sedang konsisten.
-    let driftSince = null;
-    let driftWasAhead = null;
-    // Berapa bacaan berturut-turut timer turun sejak terakhir kali kita yakin pause.
-    let resumeRun = 0;
+    // null = belum ada anchor. Selama masih null, timer belum tahu jam berapa dan setiap
+    // bacaan yang masuk akal langsung diterima.
+    let seconds = null;
+    let anchorAt = null;
 
     function anchorTo(value, at) {
       seconds = Math.max(0, Math.round(Number(value)));
       anchorAt = at;
     }
 
-    // Timer bergerak lagi setelah beku: anchor pindah ke bacaan supaya hitung mundur lanjut
-    // dari posisi yang benar. Ini satu-satunya tempat anchor digeser selain anchor pertama dan
-    // koreksi, karena hanya di sini nilai lokal memang sudah tidak bisa dihitung sendiri.
-    function resumeAt(read, at) {
-      running = true;
-      anchorTo(read, at);
-      resumeRun = 0;
-      driftSince = null;
-      driftWasAhead = null;
-      return {
-        action: 'resume',
-        reason: 'resume',
-        value: seconds,
-        running,
-        current: current(at),
-        worthSending: true,
-      };
-    }
-
-    // Nilai yang harus tampil sekarang. Menurun sendiri hanya kalau running; kalau di-pause
-    // angka ditahan di nilai anchor.
+    // Nilai yang harus tampil sekarang. Selalu turun sendiri; tidak pernah ada keadaan beku
+    // karena tracker ini tidak detecting pause sama sekali.
     function current(at = Date.now()) {
       if (seconds === null) return null;
-      if (!running || anchorAt === null) return seconds;
+      if (anchorAt === null) return seconds;
       const elapsed = Math.floor(Math.max(0, at - anchorAt) / 1000);
       return Math.max(0, seconds - elapsed);
     }
 
     function state() {
-      return { seconds, running, anchorAt, current: current() };
+      return { seconds, anchorAt, current: current() };
     }
 
     function reset() {
       seconds = null;
-      running = false;
       anchorAt = null;
-      driftSince = null;
-      driftWasAhead = null;
-      resumeRun = 0;
     }
 
-    // Bacaan OCR masuk, kembalikan keputusan yang bisa ditindaklanjuti pemanggil:
-    // 'anchor' | 'resync' | 'resume' | 'pause' | 'correct' berarti nilai berubah dan
-    // layak dikirim; sisanya hanya informasi.
+    // Bacaan OCR masuk. `anchored` told us apakah ini bacaan pertama: sebelum anchor ada, arah
+    // bacaan tidak boleh dibandingkan dengan apa pun karena belum ada nilai sebelumnya untuk
+    // dibandingkan.
     function observe(value, at = Date.now()) {
       const numeric = Number(value);
-      if (!Number.isFinite(numeric)) {
-        return { action: 'ignore', reason: 'unreadable', value: null, running, current: current(at) };
-      }
-      const read = Math.max(0, Math.round(numeric));
+      const outcome = (action, reason, extra = {}) => ({
+        action,
+        reason,
+        reasonText: REASON_TEXT[reason] || reason,
+        value: seconds,
+        at,
+        current: current(at),
+        anchored: seconds !== null,
+        ...extra,
+      });
 
+      // `null`, `undefined`, dan string kosong harus ditolak SEBELUM jadi angka. Tanpa
+      // pemeriksaan ini `Number(null)` bernilai 0, jadi bacaan kosong akan dianggap timer 0
+      // yang sah -- dan tepat di detik-detik akhir match angka itu justru diterima.
+      if (value === null || value === undefined || value === '') {
+        return outcome('ignore', 'unreadable');
+      }
+      if (!Number.isFinite(numeric)) return outcome('ignore', 'unreadable');
+      const read = Math.max(0, Math.round(numeric));
+      if (read > MAX_SECONDS) return outcome('ignore', 'out_of_range');
+
+      // Belum ada anchor: bacaan pertama yang valid langsung dipakai. Ini yang bikin timer
+      // bergerak sejak detik pertama, bukan setelah verifikasi.
       if (seconds === null) {
         anchorTo(read, at);
-        running = true;
-        driftSince = null;
-        return { action: 'anchor', reason: 'anchor', value: seconds, running, current: current(at) };
+        return outcome('anchor', 'anchor');
       }
 
       const expected = current(at);
+      // Jarak yang mungkin: waktu sejak anchor terakhir. Timer turun paling banyak satu
+      // detik per detik, jadi selisih sebesar MAX_DROP_SECONDS dalam waktu yang jauh lebih
+      // singkat hampir pasti salah baca ("10:30" terbaca jadi "1:30").
+      const gapSec = anchorAt === null ? 0 : Math.max(0, (at - anchorAt) / 1000);
+      const dropLimit = maxDropSeconds + gapSec;
+
+      // Aturan 1: tidak boleh mundur. Angka hanya boleh turun.
+      if (read > expected) return outcome('ignore', 'backward', { read, expected });
+
+      // Aturan 2: tidak boleh jatuh jauh. Bandingkan terhadap nilai yang SEDANG BERJALAN,
+      // bukan terhadap anchor: kalau dibandingkan ke anchor, selisihnya akan terus menumpuk
+      // seiring waktu dan setiap bacaan yang sah akan mulai ditolak sekitar menit ke-1.
+      if (expected - read > dropLimit) {
+        return outcome('ignore', 'misread_drop', { read, expected, dropLimit });
+      }
+
       const drift = expected - read;
-
-      const pending = (why) => ({
-        action: 'ignore',
-        reason: 'pending',
-        pendingReason: why,
-        value: seconds,
-        running,
-        current: expected,
-        worthSending: false,
-      });
-
-      // Kalau kita yakin game pause, `expected` beku di nilai anchor. Dari situ dua kemungkinan
-      // yang tidak boleh dicampur:
-      //   - bacaan TURUN  => timer bergerak => game berjalan lagi (resume).
-      //   - bacaan SAMA/NAIK => game masih beku; ini PASTE, bukan resume.
-      // Menyamakan keduanya pernah terjadi dan akibatnya sangat kelihatan: satu salah baca
-      // bisa menghidupkan timer yang seharusnya beku.
-      if (!running) {
-        if (read >= seconds) {
-          resumeRun = 0;
-          driftSince = null;
-          driftWasAhead = null;
-          return {
-            action: 'resync',
-            reason: 'paused',
-            value: seconds,
-            running,
-            current: expected,
-            worthSending: false,
-          };
-        }
-        // Bacaan turun. Kalau turunnya cuma sebesar toleransi, itu konsisten dengan timer yang
-        // berjalan beberapa detik lalu di-pause ulang -- langsung diterima, tidak perlu konfirmasi.
-        if (Math.abs(drift) <= toleranceSeconds) return resumeAt(read, at);
-        // Lompatan turun besar tidak mungkin muncul dari timer yang baru jalan sebentar, jadi
-        // satu bacaan tidak cukup: tunggu bacaan kedua yang juga turun.
-        resumeRun += 1;
-        if (resumeRun < RESUME_CONFIRM_READS) return pending('resume');
-        return resumeAt(read, at);
+      if (drift === 0) {
+        // Bacaan tepat sama dengan hitungan lokal: segarkan anchor tanpa mengubah angka.
+        anchorTo(read, at);
+        return outcome('accepted', 'accepted');
       }
 
-      if (Math.abs(drift) <= toleranceSeconds) {
-        // Konsisten, jadi pending dihapus. Anchor lokal SENGAJA TIDAK digeser ke bacaan OCR yang
-        // sudah dalam toleransi: menganchor ulang membuat noise 1-3 detik jadi lompatan yang
-        // terlihat di layar (angka maju satu detik lalu mundur lagi), dan yang lebih buruk,
-        // kalau game sedang pause, hitungan lokal selalu dragged mendekati bacaan sehingga
-        // simpangan tidak pernah tumbuh melewati toleransi -- pause jadi mustahil dikenali.
-        //
-        // Hitungan lokal justru lebih akurat dari OCR: satu anchor yang dihitung ulang sendiri
-        // tidak punya noise pembacaan sama sekali.
-        driftSince = null;
-        driftWasAhead = null;
-        return {
-          action: 'resync',
-          reason: 'resync',
-          value: seconds,
-          running,
-          current: expected,
-          worthSending: false,
-        };
+      if (drift < correctDriftSeconds) {
+        // Selisih kecil itu cuma noise pembacaan. Sengaja TIDAK digeser ke sini: menggeser
+        // anchor setiap poll akan membuat digit terakhir maju-mundur terus di layar. locally
+        // menghitung ulang lebih akurat karena tidak punya noise sama sekali.
+        return outcome('accepted', 'accepted', { drift, shifted: false });
       }
 
-      // Simpangan besar: tunggu dulu, game bisa saja sedang pause atau ini salah baca.
-      const ahead = drift < 0; // nilai lokal lebih kecil dari bacaan => kita terlalu cepat
-      if (driftSince === null || driftWasAhead !== ahead) {
-        driftSince = at;
-        driftWasAhead = ahead;
-        return pending(ahead ? 'drift-ahead' : 'drift-behind');
-      }
-
-      // Simpangan besar di dalam grace: ditahan, anchor lama tidak disentuh.
-      if (at - driftSince < pauseGraceMs) {
-        return pending(ahead ? 'drift-ahead' : 'drift-behind');
-      }
-
-      // Arahnya yang menentukan, dan ARAH INI SERING TERBALIK kalau dibaca sekilas:
-      // `drift = expected - read`, jadi `ahead === true` berarti bacaan OCR LEBIH BESAR dari
-      // hitungan lokal. Itu persis gejala game berhenti: kita terus menghitung mundur padahal
-      // timer di layar berhenti. Jadi `ahead` -> pause, bukan correct.
-      running = !ahead;
+      // Selisih sudah meaningfully besar: ini koreksi sungguhan, misalnya ada poll yang
+      // terlewat atau timer sempat tidak terbaca. Baru di sini anchor digeser.
       anchorTo(read, at);
-      driftSince = null;
-      driftWasAhead = null;
-      return {
-        action: ahead ? 'pause' : 'correct',
-        reason: ahead ? 'pause' : 'correct',
-        value: seconds,
-        running,
-        current: current(at),
-        worthSending: true,
-      };
+      return outcome('corrected', 'corrected', { read, expected, drift, shifted: true });
     }
 
     return { observe, current, state, reset };
@@ -221,9 +149,9 @@
 
   root.OcrTimer = {
     createTracker,
-    TOLERANCE_SECONDS,
-    PAUSE_GRACE_MS,
-    RESYNC_SECONDS,
+    MAX_DROP_SECONDS,
+    CORRECT_DRIFT_SECONDS,
+    MAX_SECONDS,
     REASON_TEXT,
   };
 }(globalThis));

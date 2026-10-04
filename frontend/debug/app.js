@@ -350,7 +350,7 @@ function decideField(key, sample) {
   if (key === 'timer' && timerTracker) {
     const outcome = timerTracker.observe(sample.value, sample.at);
     return {
-      accepted: outcome.action !== 'ignore' || outcome.reason === 'unchanged',
+      accepted: outcome.action !== 'ignore',
       value: outcome.value,
       reason: outcome.reason,
       reasonText: window.OcrTimer.REASON_TEXT[outcome.reason] || outcome.reason,
@@ -366,9 +366,11 @@ async function readAllRois(worker) {
   const updates = {};
   for (const key of getActiveFields()) {
     status.textContent = `Membaca ${currentRegions[key].label}...`;
-    // Whitelist Tesseract untuk ROI timer. Hanya angka dan tanda titik dua: bentuk `mm:ss` sudah
-// satu-satunya yang diterima parser, jadi membiarkan `.` masuk hanya menambah bacaan yang pasti
-// ditolak dan memperlambat scan.
+    // Whitelist Tesseract untuk ROI timer. Titik dua TETAP ada di whitelist meski parser
+// sudah menerima bentuk tanpa titik dua: kalau karakter itu dilarang, Tesseract tidak akan
+// pernah menghasilkannya, dan bentuk `MMSS` hanya bisa muncul sebagai hasil tebakan soal
+// digit yang mana yang menit. Dengan titik dua tetap diizinkan, bacaan `02:04` lebih sering
+// muncul dan bentuk `0204` dipakai hanya saat titik dua benar-benar hilang.
     await worker.setParameters({
       tessedit_char_whitelist: key === 'timer' ? '0123456789:' : '0123456789Kk,.',
     });

@@ -2,53 +2,55 @@
 //
 // Aturan yang dipakai operator, dan hanya itu:
 //
-//   1. Bacaan pertama yang valid LANGSUNG jadi anchor dan timer langsung berjalan. Tidak ada
-//      tahap verifikasi yang menahan angka.
-//   2. Timer tidak pernah mundur. Angkanya hanya boleh turun.
-//   3. Tidak ada logika pause sama sekali. Kalau operator mau menahan waktu, itu urusan
-//      tombol Start/Finish di control panel, bukan tebakan dari OCR.
+//   1. HANYA bacaan pertama yang jadi anchor. Sesudah itu angka dihitung sendiri, jadi timer
+//      berjalan terus tanpa bergantung pada OCR sama sekali.
+//   2. Timer tidak pernah mundur. Angka di layar hanya boleh turun, tidak pernah naik.
+//   3. Bacaan yang ditolak tidak menghentikan apa pun. Anchor tetap dipegang dan hitungan
+//      lokal tetap jalan, jadi tidak ada keadaan "berhenti" yang bisa terjadi.
 //
-// Tidak ada filter lain. Sebelumnya tracker juga menolak bacaan yang JAUH lebih kecil dari
-// waktu berjalan dengan alasan "salah baca", dan itulah yang membuat layar macet: begitu satu
-// bacaan salah besar tertangkap sebagai anchor (mis. "12:30" untuk timer yang sebenarnya
-// 02:04), setiap bacaan berikutnya yang benar ditolak karena melompat terlalu jauh -- jadi
-// angka yang benar tidak pernah bisa masuk, persis seperti yang dilaporkan operator. Selama
-// bacaan operator sudah tepat, angka itu harus diterima apa adanya.
+// Pembacaan berikutnya tidak dipakai untuk mengoreksi timer, melainkan hanya untuk me-reset
+// anchor kalau angkanya nyaris sama dengan hitungan lokal. Itu satu-satunya gunanya:
 //
-// Yang masih ditolak bukan "filter", cuma masukan yang memang tidak bisa jadi waktu:
+//   - bacaan LEBIH BESAR dari waktu berjalan  -> ditolak. Menerimanya membuat angka naik.
+//   - bacaan jauh di bawah waktu berjalan    -> ditolak. Contoh yang diberi operator: timer
+//     benar-benar 01:25 lalu terbaca "00:26" karena digit menitnya salah baca jadi 0. Angka
+//     00:26 itu bukan 26 detik, dan menerimanya akan MELOMPAT mundur satu menit.
+//   - selisih kecil                          -> anchor di-reset ke bacaan itu, jadi angka
+//     tidak perlahan menyimpang dari game kalau ada scan yang telat atau tab yang throttled.
 //
-//   - null / undefined / string kosong. `Number(null)` bernilai 0, jadi tanpa pemeriksaan ini
-//     bacaan kosong dianggap timer 0 yang sah -- dan tepat di detik-detik akhir match angka
-//     itu justru diterima.
-//   - nilai yang bukan angka.
-//   - lebih dari MAX_SECONDS. Timer MLBB tidak pernah melebihi itu, jadi angka sebesar itu
-//     pasti salah baca, bukan kondisi yang perlu ditampilkan.
-//
-// Pemformatan `mm:ss` ditegakkan di ocr-parse.js, bukan di sini: modul ini menerima detik
-// dan tidak tahu bentuk teks OCR-nya.
+// Filter "jatuh jauh" versi lama justru membuat semua bacaan yang benar ditolak begitu satu
+// bacaan salah besar tertangkap, dan itu membuat timer macet permanen. Karena itu di sini
+// ada batas toleransi yang tumbuh seiring waktu sejak anchor terakhir, sehingga gap yang
+// panjang tidak selalu berarti bacaan salah.
 //
 // Modul ini terpisah dari halaman debug supaya aturannya bisa diuji tanpa browser, dan
 // dipakai juga oleh panel verifikasi supaya keduanya tidak bisa berbeda.
 (function (root) {
+  // Toleransi dasar untuk bacaan yang tertinggal dari hitungan lokal. Satu siklus OCR
+  // memakan sekitar satu detik, dan hasilnya bisa beberapa detik tua karena sudah dibaca
+  // sebelum dikirim. 10 detik menutup kedua hal itu tanpa lama-lama berubah menjadi celah
+  // untuk bacaan yang benar-benar salah.
+  const LAG_TOLERANCE_SECONDS = 10;
   // Batas atas absurdity: timer MLBB tidak pernah lebih dari 3600 detik (1 jam).
   const MAX_SECONDS = 3600;
 
   const REASON_TEXT = {
-    anchor: 'anchor pertama dari OCR, timer mulai jalan',
-    accepted: 'bacaan diterima, timer diselaraskan',
-    backward: 'bacaan lebih besar dari waktu berjalan, ditolak',
+    anchor: 'anchor pertama dari OCR, timer berjalan sendiri sejak sini',
+    resync: 'bacaan cocok dengan hitungan lokal, anchor disegarkan',
+    backward: 'bacaan lebih besar dari waktu berjalan, ditolak supaya angka tidak mundur',
+    misread_lag: 'bacaan jauh di bawah waktu berjalan, ditolak sebagai salah baca digit',
     unreadable: 'bacaan timer tidak terbaca',
     out_of_range: 'di luar rentang timer',
   };
 
   function createTracker() {
     // null = belum ada anchor. Selama masih null, timer belum tahu jam berapa dan setiap
-    // bacaan yang masuk akal langsung diterima.
+    // bacaan yang masuk akal langsung dipakai.
     let seconds = null;
     let anchorAt = null;
 
-    // Nilai yang harus tampil sekarang. Selalu turun sendiri; tidak pernah ada keadaan beku
-    // karena tracker ini tidak detecting pause sama sekali.
+    // Nilai yang harus tampil sekarang. Selalu turun sendiri dan tidak pernah ada keadaan
+    // beku: selama anchor ada, selalu ada angka yang sedang berjalan.
     function current(at = Date.now()) {
       if (seconds === null) return null;
       if (anchorAt === null) return seconds;
@@ -90,8 +92,7 @@
       const read = Math.max(0, Math.round(numeric));
       if (read > MAX_SECONDS) return outcomeOf('ignore', 'out_of_range', at, { read });
 
-      // Belum ada anchor: bacaan pertama yang valid langsung dipakai. Ini yang bikin timer
-      // bergerak sejak detik pertama, bukan setelah verifikasi.
+      // Aturan 1: hanya bacaan pertama yang jadi anchor.
       if (seconds === null) {
         seconds = read;
         anchorAt = at;
@@ -100,18 +101,26 @@
 
       const expected = current(at);
 
-      // Satu-satunya aturan tolak: angka tidak boleh naik. Kalau OCR membaca "10:30" sebagai
-      // "18:30", atau salah membaca digit tengah, timer akan melompat ke belakang dan penonton
-      // mengira pertandingan dimulai dari nol.
+      // Aturan 2: angka di layar tidak boleh pernah naik.
       if (read > expected) return outcomeOf('ignore', 'backward', at, { read, expected });
 
-      // Bacaan turun atau sama: ini koreksi sungguhan, jadi anchor langsung digeser ke
-      // angka yang benar operator. Tidak ada ambang minimum, karena ambang itulah yang
-      // membuat angka yang benar tidak pernah bisa diterima.
+      // Toleransi tumbuh seiring waktu sejak anchor terakhir, supaya gap panjang (tab di
+      // belakang, scan yang gagal beberapa kali) tidak otomatis dianggap salah baca. Karena
+      // anchor di-reset setiap bacaan yang diterima, gap ini tetap kecil dalam pemakaian
+      // normal dan tidak pernah berubah jadi celah bebas.
+      const gapSec = anchorAt === null ? 0 : Math.max(0, (at - anchorAt) / 1000);
+      const lagLimit = LAG_TOLERANCE_SECONDS + Math.floor(gapSec);
+
+      if (expected - read > lagLimit) {
+        return outcomeOf('ignore', 'misread_lag', at, { read, expected, lagLimit });
+      }
+
+      // Selisih kecil: bacaan operator dianggap benar, anchor dipindahkan ke sana. Ini yang
+      // menjaga angka tetap dekat dengan game tanpa pernah melompat.
       const drift = expected - read;
       seconds = read;
       anchorAt = at;
-      return outcomeOf('accepted', 'accepted', at, { read, expected, drift });
+      return outcomeOf('resync', 'resync', at, { read, expected, drift, lagLimit });
     }
 
     return { observe, current, state, reset };
@@ -119,6 +128,7 @@
 
   root.OcrTimer = {
     createTracker,
+    LAG_TOLERANCE_SECONDS,
     MAX_SECONDS,
     REASON_TEXT,
   };

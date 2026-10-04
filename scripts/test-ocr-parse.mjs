@@ -7,7 +7,7 @@
 // Menjalankan frontend/shared/ocr-parse.js apa adanya, tanpa browser.
 import '../frontend/shared/ocr-parse.js';
 
-const { parseRecognizedValue } = globalThis.OcrParse;
+const { parseRecognizedValue, parseTimer } = globalThis.OcrParse;
 
 let passed = 0;
 let failed = 0;
@@ -38,22 +38,34 @@ section('Timer mm:ss diterima');
   check('baris baru di sekitar titik dua diabaikan', parseRecognizedValue('timer', '02:04\n') === 124, String(parseRecognizedValue('timer', '02:04\n')));
 }
 
-section('Timer di luar mm:ss ditolak supaya di-scan ulang');
+section('Timer: titik dua yang hilang tetap dibaca sebagai mm:ss');
 {
-  // Regex lama menerima `:` maupun `.` dan mencari di tengah teks, jadi bentuk-bentuk ini
-  // pernah jadi angka. `.` dan `·` tidak dipakai MLBB sama sekali.
-  //
-  // Spasi di sekitar titik dua juga ditolak. Operator meminta bentuknya selalu `00:00`; kalau
-  // OCR menyisipkan spasi, hasil tekanya bukan mm:ss dan harus di-scan ulang, bukan ditebak
-  // jadi angka yang mungkin benar. Siklus berikutnya berjalan ~1 detik, jadi tidak ada yang
-  // benar-benar hilang.
+  // Skenario operator: anchor 01:20, lalu bacaan `0123` karena Tesseract kehilangan titik
+  // dua. Itu 01:23, bukan 123 detik dan bukan "tidak terbaca".
+  check('0123 = 01:23', parseTimer('0123') === 83, String(parseTimer('0123')));
+  check('0204 = 02:04', parseTimer('0204') === 124, String(parseTimer('0204')));
+  check('204 = 02:04', parseTimer('204') === 124, String(parseTimer('204')));
+  check('123 = 01:23', parseTimer('123') === 83, String(parseTimer('123')));
+  check('0000 = 00:00', parseTimer('0000') === 0, String(parseTimer('0000')));
+  check('1500 = 15:00', parseTimer('1500') === 900, String(parseTimer('1500')));
+  // Dibaca sebagai menit+detik, tidak pernah sebagai detik mentah: `0204` sebagai 204 detik
+  // akan berarti 03:24 dan timer melompat jauh.
+  check('0204 bukan 204 detik', parseTimer('0204') !== 204, String(parseTimer('0204')));
+  check('nilai tidak pernah melewati 99:59', parseTimer('9999') === 6039, String(parseTimer('9999')));
+}
+
+section('Timer di luar bentuk yang dikenal ditolak supaya di-scan ulang');
+{
+  // Regex lama menerima `.` dan `·` sebagai pemisah dan mencari di tengah teks, dan tidak
+  // pernah menolak detik di atas 59 -- "02:75" dihitung jadi 195 detik dan tayang di stream.
   const rejected = [
     ['spasi sebelum titik dua', '02 : 04'],
     ['spasi setelah titik dua', '02: 04'],
     ['baris baru di sekitar titik dua', '02:\n04'],
     ['titik sebagai pemisah', '02.04'],
     ['pemisah tengah titik', '02·04'],
-    ['tanpa pemisah', '0204'],
+    ['tanpa pemisah dua digit', '04'],
+    ['tanpa pemisah lima digit', '12045'],
     ['detik satu digit', '02:4'],
     ['detik tiga digit', '02:004'],
     ['teks menempel', 'Time 02:04'],
@@ -65,7 +77,7 @@ section('Timer di luar mm:ss ditolak supaya di-scan ulang');
     ['dua titik dua', '02:04:11'],
   ];
   for (const [label, text] of rejected) {
-    const value = parseRecognizedValue('timer', text);
+    const value = parseTimer(text);
     check(`${label} jadi null`, value === null, String(value));
   }
 }

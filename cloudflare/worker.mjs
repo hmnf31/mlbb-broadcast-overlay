@@ -507,10 +507,20 @@ const MATCH_STATUSES = new Set(['idle', 'live', 'finished']);
 
 function normalizeMatchStatus(match) {
   match.status = MATCH_STATUSES.has(match.status) ? match.status : 'idle';
-  // `timerRunning` tidak boleh bertentangan dengan status: match yang sudah selesai atau belum
-  // mulai tidak mungkin sedang menghitung mundur. Menormalkan di sini membuat dua sumber
-  // kebenaran tidak bisa bertentangan.
-  match.timerRunning = match.status === 'live';
+  // Jam overlay hanya bergerak kalau `timerRunning` true; kalau tidak, `timerSeconds()`
+  // mengembalikan `timer` apa adanya dan angkanya membeku di layar.
+  //
+  // Dulu nilai ini murni `status === 'live'`, jadi operator yang menjalankan OCR Live tanpa
+  // pernah menekan tombol Start melihat angka membeku padahal bacaannya benar terus masuk.
+  // Sekarang anchor timer dari OCR juga dianggap bukti jam sedang berjalan: `timer` yang
+  // lebih besar dari nol hanya bisa ada kalau OCR sudah pernah membaca jam yang sedang
+  // menghitung mundur.
+  //
+  // 'finished' tetap menang apa pun, supaya tombol Finish benar-benar menahan semua angka di
+  // nilai terakhir. Start mengnolkan semuanya, jadi setelah Start angka membeku di 0 dan tidak
+  // ikut berjalan sendiri.
+  match.timerRunning = match.status === 'live'
+    || (match.status !== 'finished' && Number(match.timer) > 0);
   return match;
 }
 

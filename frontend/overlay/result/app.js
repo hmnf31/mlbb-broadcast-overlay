@@ -24,6 +24,16 @@ const ui = {
   durationTotal: document.getElementById('result-duration-total'),
   damage: document.getElementById('result-damage'),
   mvp: document.getElementById('result-mvp'),
+  // Ticker + header
+  tickerStage: document.getElementById('ticker-stage'),
+  tickerGame: document.getElementById('ticker-game'),
+  tickerFormat: document.getElementById('ticker-format'),
+  tickerState: document.getElementById('ticker-state'),
+  blueKills: document.getElementById('result-blue-kills'),
+  redKills: document.getElementById('result-red-kills'),
+  // Kolom tengah
+  goldBlue: document.getElementById('center-gold-blue'),
+  goldRed: document.getElementById('center-gold-red'),
   // Mode A
   mvpArt: document.getElementById('mvp-hero-art'),
   mvpPlayer: document.getElementById('mvp-player'),
@@ -301,51 +311,111 @@ function renderSeriesDots(element, won, needed, side) {
   }
 }
 
+// Satu baris roster mengikuti urutan mockup: portrait + level, role dan nama, KDA/DMG/GPM,
+// lalu build (gold, enam slot item, spell, emblem).
+//
+// Slot item SELALU enam. Slot yang belum diisi dibiarkan kosong, bukan diisi teks
+// placeholder: pada layar live, kotak kosong terbaca sebagai "operator belum mengisi",
+// sedangkan teks karangan terbaca sebagai data.
+//
+// `heroImage` dan `items` datang dari operator, jadi path-nya dibatasi ke direktori aset
+// masing-masing; string `javascript:` atau path absolut tidak boleh masuk ke atribut src.
+function buildBoardRow(player) {
+  const row = document.createElement('li');
+  row.className = 'board-row';
+
+  const portrait = document.createElement('span');
+  portrait.className = 'board-row-portrait';
+  const image = document.createElement('img');
+  image.className = 'board-row-hero';
+  const art = /^\/assets\/heroes\/[A-Za-z0-9_-]+\.png$/.test(player.heroImage || '') ? player.heroImage : '';
+  if (art) image.src = art;
+  image.alt = '';
+  portrait.append(image);
+  const level = document.createElement('span');
+  level.className = 'board-row-level';
+  level.textContent = String(Number(player.level) || 0);
+  portrait.append(level);
+
+  const idCell = document.createElement('span');
+  idCell.className = 'board-row-id';
+  const role = document.createElement('span');
+  role.className = 'board-row-role';
+  role.textContent = player.role || '';
+  const nameCell = document.createElement('span');
+  nameCell.className = 'board-row-name';
+  nameCell.textContent = player.name || '-';
+  const heroName = document.createElement('span');
+  heroName.className = 'board-row-hero-name';
+  heroName.textContent = player.hero || '';
+  nameCell.append(heroName);
+  idCell.append(role, nameCell);
+
+  const stats = document.createElement('span');
+  stats.className = 'board-row-stats';
+  const kda = document.createElement('span');
+  kda.className = 'board-row-kda';
+  kda.textContent = `${Number(player.kills) || 0}/${Number(player.deaths) || 0}/${Number(player.assists) || 0}`;
+  const damage = document.createElement('span');
+  damage.className = 'board-row-num';
+  damage.textContent = `${Math.round(Number(player.damagePct) || 0)}%`;
+  const gpm = document.createElement('span');
+  gpm.className = 'board-row-num';
+  gpm.textContent = `${Number(player.gpm) || 0}`;
+  stats.append(kda, damage, gpm);
+
+  const build = document.createElement('span');
+  build.className = 'board-row-build';
+  const gold = document.createElement('span');
+  gold.className = 'board-row-gold';
+  gold.textContent = compact(player.gold);
+
+  const items = document.createElement('span');
+  items.className = 'board-row-items';
+  const safeItems = (Array.isArray(player.items) ? player.items : [])
+    .slice(0, 6)
+    .map((entry) => (/^\/assets\/items\/[A-Za-z0-9_-]+\.png$/.test(entry) ? entry : ''))
+    .filter(Boolean);
+  for (let index = 0; index < 6; index += 1) {
+    const slot = document.createElement('span');
+    slot.className = 'board-row-item';
+    if (safeItems[index]) {
+      const thumb = document.createElement('img');
+      thumb.src = safeItems[index];
+      thumb.alt = '';
+      slot.append(thumb);
+    }
+    items.append(slot);
+  }
+
+  const utility = document.createElement('span');
+  utility.className = 'board-row-utility';
+  const spell = document.createElement('span');
+  spell.className = 'board-row-spell';
+  spell.textContent = player.battleSpell || '';
+  const emblem = document.createElement('span');
+  emblem.className = 'board-row-emblem';
+  emblem.textContent = player.emblem || '';
+  utility.append(spell, emblem);
+  build.append(gold, items, utility);
+
+  // Lima sumbu radar per baris: mini bar, tanpa label, supaya lima baris tim muat
+  // tanpa membuat kolom nama sempit.
+  const radarCell = document.createElement('span');
+  radarCell.className = 'board-row-radar';
+  const radar = readRadar(player);
+  if (radar) radarCell.append(buildRadarBars(radar));
+
+  row.append(portrait, idCell, stats, build, radarCell);
+  return row;
+}
+
 function renderScoreboard(players, series, match) {
   const build = (side) => {
     const container = side === 'blue' ? ui.boardBlueRows : ui.boardRedRows;
     container.replaceChildren();
     const list = sidePlayers(players, side).slice(0, 5);
-    for (const player of list) {
-      const row = document.createElement('li');
-      row.className = 'board-row';
-
-      const art = /^\/assets\/heroes\/[A-Za-z0-9_-]+\.png$/.test(player.heroImage || '') ? player.heroImage : '';
-      const image = document.createElement('img');
-      image.className = 'board-row-hero';
-      if (art) image.src = art;
-      image.alt = '';
-
-      const nameCell = document.createElement('span');
-      nameCell.className = 'board-row-name';
-      nameCell.textContent = player.name || '-';
-      const heroName = document.createElement('span');
-      heroName.className = 'board-row-hero-name';
-      heroName.textContent = player.hero || '';
-      nameCell.append(heroName);
-
-      const kda = document.createElement('span');
-      kda.className = 'board-row-kda';
-      kda.textContent = `${Number(player.kills) || 0}/${Number(player.deaths) || 0}/${Number(player.assists) || 0}`;
-
-      const damage = document.createElement('span');
-      damage.className = 'board-row-num';
-      damage.textContent = `${Math.round(Number(player.damagePct) || 0)}%`;
-
-      const gpm = document.createElement('span');
-      gpm.className = 'board-row-num';
-      gpm.textContent = `${Number(player.gpm) || 0}`;
-
-      // Lima sumbu radar per baris: mini bar, tanpa label, supaya lima baris tim muat
-      // tanpa membuat kolom nama sempit.
-      const radarCell = document.createElement('span');
-      radarCell.className = 'board-row-radar';
-      const radar = readRadar(player);
-      if (radar) radarCell.append(buildRadarBars(radar));
-
-      row.append(image, nameCell, kda, damage, gpm, radarCell);
-      container.append(row);
-    }
+    for (const player of list) container.append(buildBoardRow(player));
   };
 
   build('blue');
@@ -424,6 +494,24 @@ function render(payload) {
   ui.durationTotal.textContent = Number(result.bestOf) > 1 ? `Best of ${result.bestOf}` : '-';
   ui.damage.textContent = `${Math.round(Number(result.damageDealt) || 0)} / ${Math.round(Number(result.damageTaken) || 0)}`;
   ui.mvp.textContent = result.mvp || '-';
+
+  // Kill tim dan gold total datang dari OCR gameplay. Nol di layar hasil akhir berarti "belum
+  // diisi", bukan performa nol, jadi angka besarnya replaced dengan "--" supaya tidak pernah
+  // terbaca sebagai klaim.
+  const blueKills = Math.round(Number(match.blueKills) || 0);
+  const redKills = Math.round(Number(match.redKills) || 0);
+  ui.blueKills.textContent = blueKills > 0 ? String(blueKills) : '--';
+  ui.redKills.textContent = redKills > 0 ? String(redKills) : '--';
+  const blueGold = Math.round(Number(match.blueGold) || 0);
+  const redGold = Math.round(Number(match.redGold) || 0);
+  ui.goldBlue.textContent = blueGold > 0 ? compact(blueGold) : '--';
+  ui.goldRed.textContent = redGold > 0 ? compact(redGold) : '--';
+
+  // Ticker hanya memuat data yang ada di state: stage, nomor game, format seri, dan hasil.
+  ui.tickerStage.textContent = result.stageLabel || 'FINAL';
+  ui.tickerGame.textContent = String(Number(result.gameNumber) || 1);
+  ui.tickerFormat.textContent = Number(result.bestOf) > 1 ? `Best of ${result.bestOf}` : 'Single Game';
+  ui.tickerState.textContent = outcome === 'defeat' ? 'DEFEAT' : 'VICTORY';
 
   ui.boardBlueName.textContent = teams.blue?.name || 'Blue';
   ui.boardRedName.textContent = teams.red?.name || 'Red';

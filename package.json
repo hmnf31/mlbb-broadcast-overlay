@@ -14,12 +14,13 @@
     "test:ocr": "node scripts/test-ocr-guard.mjs",
     "test:ocr-timer": "node scripts/test-ocr-timer.mjs && node scripts/test-ocr-parse.mjs",
     "test:overlay": "node scripts/test-overlay-render.mjs",
+    "test:markup": "node scripts/check-overlay-markup.cjs",
     "test:d1": "node scripts/test-d1.mjs",
     "test:draft": "node scripts/test-draft-analytics.mjs && node scripts/test-draft-overlay.mjs",
     "test:result-modes": "node scripts/test-result-modes.mjs",
     "test:verify": "node scripts/test-verify-panel.mjs",
     "test:home": "node scripts/test-home-flow.mjs",
-    "test:all": "npm run test:draft && npm run test:result-modes && npm run test:verify && npm run test:home && npm run test:ocr && npm run test:ocr-timer && npm run test:control && npm run test:overlay"
+    "test:all": "npm run test:markup && npm run test:draft && npm run test:result-modes && npm run test:verify && npm run test:home && npm run test:ocr && npm run test:ocr-timer && npm run test:control && npm run test:overlay"
   },
   "devDependencies": {
     "jsdom": "^30.1.1",

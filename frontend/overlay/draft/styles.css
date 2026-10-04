@@ -1,16 +1,28 @@
-/* Overlay draft — bahasa visual Apex Broadcast Engine.
- * Token warna, font, dan bentuknya datang dari frontend/shared/apex.css; file ini hanya
- * menyusun board di atas token itu.
+/* Overlay draft. Token warna, radius, dan font datang dari frontend/shared/apex.css; file ini
+ * hanya menata board di atas token itu.
+ *
+ * Susunan mengikuti DESAINULANG.md (baris 746-1310, "Broadcast Match Header Layout") dengan
+ * tiga perubahan yang tidak bisa diambil apa adanya dari mockup:
+ *
+ *   1. Chamfer 45 derajat dan `clip-path` tidak dipakai. Di apex.css bentuk aslinya sudah
+ *      diganti rail cahaya 6px + radius 4/8/12, dan `clip-path` merusak tepi rail.
+ *   2. Badge coach di mockup dihilangkan. `draft` di Durable Object hanya menyimpan
+ *      heroId per slot (worker.mjs normalizeDraftState), tidak ada nama coach, jadi badge itu
+ *      tidak punya sumber data. Platznya dipakai nama tim yang memang ada.
+ *   3. Slot pick tidak diberi label lane (EXP/JUNGLE/MID/ROAM/GOLD). Urutan pick kita adalah
+ *      urutan draft, bukan posisi lane, jadi label tersebut akan berbohong. Yang tampil di
+ *      pojok slot adalah role asli hero dari matriks.
+ *
+ * Semua ukuran dikalikan `--design-scale` supaya halaman tetap proporsional di OBS pada
+ * resolusi apa pun; `--design-scale` dihitung app.js dari lebar shell.
  */
 
 * {
   box-sizing: border-box;
 }
 
-/* Default ini wajib ada. Tanpa `:root { --design-scale: 1 }`, setiap deklarasi
-   calc(Npx * var(--design-scale)) di file ini invalid-at-computed-value-time kalau
-   app.js gagal jalan (mis. profile.js 404), sehingga font jatuh ke 16px dan border/padding
-   ke 0 — board terlihat benar-benar rusak, bukan sekadar tidak berskala. */
+/* Fallback wajib ada. Tanpa ini setiap `calc(Npx * var(--design-scale))` menjadi invalid at
+ * computed value time kalau app.js gagal dimuat, dan seluruh halaman menyusut jadi nol. */
 :root {
   --design-scale: 1;
 }
@@ -18,255 +30,261 @@
 html,
 body {
   margin: 0;
-  height: 100%;
+  padding: 0;
   background: transparent;
-  overflow: hidden;
+  color: var(--on-surface);
   font-family: var(--font-body);
 }
 
-/* Kanvas desain 1280x720 yang diskalakan ke lebar layar, sama seperti overlay result dan
-   gameplay supaya ukuran huruf di ketiga browser source terasa sama. */
 .draft-shell {
   --muted: var(--on-surface-variant);
-  --outline: var(--outline-variant);
+  --hairline: var(--outline-variant);
 
-  position: relative;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
-  margin: auto;
-  padding: calc(var(--space-lg) * var(--design-scale)) calc(var(--margin) * var(--design-scale));
   display: none;
   flex-direction: column;
-  gap: calc(var(--space-md) * var(--design-scale));
-  overflow: hidden;
-  color: var(--on-surface);
-  /* Latar smoky gelap, bukan hitam pekat, supaya map di bawah overlay masih terbaca. */
-  background:
-    radial-gradient(circle at 50% 0%, rgb(0 229 255 / 10%), transparent 55%),
-    linear-gradient(180deg, rgb(15 19 29 / 94%), rgb(10 14 24 / 97%));
+  gap: calc(4px * var(--design-scale));
+  width: 100%;
+  min-height: 100vh;
+  padding: calc(10px * var(--design-scale)) calc(12px * var(--design-scale));
+  font-size: calc(12px * var(--design-scale));
+  -webkit-font-smoothing: antialiased;
 }
 
 .draft-shell[data-visible='true'] {
   display: flex;
 }
 
-/* --- header + giliran ------------------------------------------------------ */
-
-/* 'ROUND n' yang diisi manual diganti oleh giliran yang benar-benar sedang berjalan. Urutannya
-   diturunkan dari slot yang sudah terisi, jadi tidak bisa salah dan tidak perlu diisi. */
+/* --- baris atas: ban kiri, inti fase, ban kanan ---------------------------------------------- */
 .draft-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--space-xl) * var(--design-scale));
-  padding: calc(var(--space-sm) * var(--design-scale)) calc(var(--space-lg) * var(--design-scale));
-  border-radius: var(--radius);
-  background: rgb(23 27 38 / 90%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: calc(8px * var(--design-scale));
 }
 
-.draft-header-left,
-.draft-header-right {
+.draft-rail {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-md) * var(--design-scale));
+  gap: calc(8px * var(--design-scale));
+  min-width: 0;
 }
 
-.draft-chip {
-  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-md) * var(--design-scale));
+.draft-rail[data-side='blue'] {
+  flex-direction: row;
+  justify-content: flex-end;
+}
+
+.draft-rail[data-side='red'] {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+/* Rel 6px menggantikan chamfer mockup: sisi tim selalu punya garis cahaya di tepi luarnya. */
+.draft-rail-badge {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--design-scale));
+  padding: calc(5px * var(--design-scale)) calc(9px * var(--design-scale));
+  background: rgb(15 19 29 / 88%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%);
+}
+
+.draft-rail[data-side='blue'] .draft-rail-badge {
+  border-left: calc(2px * var(--design-scale)) solid var(--cyan);
+}
+
+.draft-rail[data-side='red'] .draft-rail-badge {
+  border-right: calc(2px * var(--design-scale)) solid var(--rose);
+}
+
+.draft-rail-name {
+  font-family: var(--font-display);
+  font-size: calc(15px * var(--design-scale));
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.draft-rail[data-side='blue'] .draft-rail-name {
+  color: var(--cyan);
+}
+
+.draft-rail[data-side='red'] .draft-rail-name {
+  color: var(--rose);
+}
+
+.board-badge {
+  padding: calc(2px * var(--design-scale)) calc(5px * var(--design-scale));
   border-radius: var(--radius-sm);
-  background: var(--cyan);
-  color: var(--on-cyan-container);
+  background: rgb(0 229 255 / 12%);
+  color: var(--cyan);
   font-family: var(--font-body);
-  font-size: calc(10px * var(--design-scale));
+  font-size: calc(8px * var(--design-scale));
   font-weight: 900;
-  line-height: calc(12px * var(--design-scale));
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-/* BAN dan PICK dibedakan warna dan lebar, jadi fase terbaca sekilas tanpa harus membaca
-   teksnya. */
+.board-badge-enemy {
+  background: rgb(255 82 95 / 12%);
+  color: var(--rose);
+}
+
+.draft-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3px * var(--design-scale));
+  padding: calc(5px * var(--design-scale)) calc(16px * var(--design-scale));
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgb(23 27 38 / 95%), rgb(10 14 24 / 95%));
+  box-shadow: inset 0 0 0 1px rgb(0 229 255 / 14%);
+}
+
+.draft-core-turn {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--design-scale));
+}
+
 .draft-phase {
-  min-width: calc(84px * var(--design-scale));
-  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-md) * var(--design-scale));
+  padding: calc(2px * var(--design-scale)) calc(8px * var(--design-scale));
   border-radius: var(--radius-sm);
-  text-align: center;
   font-family: var(--font-display);
-  font-weight: 400;
-  font-size: calc(24px * var(--design-scale));
-  line-height: calc(26px * var(--design-scale));
-  letter-spacing: 0.04em;
+  font-size: calc(13px * var(--design-scale));
+  line-height: 1.1;
+  letter-spacing: 0.14em;
+  background: var(--surface-high);
+  color: var(--on-surface);
 }
 
 .draft-phase[data-phase='ban'] {
-  background: var(--danger-container);
-  color: var(--danger);
+  background: rgb(255 82 95 / 16%);
+  color: var(--rose);
 }
 
 .draft-phase[data-phase='pick'] {
-  background: var(--cyan);
-  color: var(--on-cyan);
+  background: rgb(0 229 255 / 16%);
+  color: var(--cyan);
 }
 
 .draft-phase[data-phase='done'] {
-  background: var(--gold);
-  color: var(--on-gold);
+  background: rgb(244 206 0 / 16%);
+  color: var(--gold);
 }
 
 .draft-turn {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-md) * var(--design-scale));
+  gap: calc(6px * var(--design-scale));
 }
 
 .draft-turn-side {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: calc(16px * var(--design-scale));
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  line-height: 1;
+  letter-spacing: 0.1em;
 }
 
 .draft-turn-side[data-side='blue'] {
   color: var(--cyan);
+  text-shadow: 0 0 calc(12px * var(--design-scale)) rgb(0 229 255 / 55%);
 }
 
 .draft-turn-side[data-side='red'] {
   color: var(--rose);
+  text-shadow: 0 0 calc(12px * var(--design-scale)) rgb(255 82 95 / 55%);
 }
 
-/* Langkah "3 / 20" pakai mono: angka di kiri tidak bergeser saat digitnya berubah. */
 .draft-turn-step {
   font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: calc(13px * var(--design-scale));
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.draft-source {
-  font-family: var(--font-mono);
-  font-weight: 500;
   font-size: calc(10px * var(--design-scale));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--outline);
-}
-
-.draft-source[data-state='curated'] {
+  font-weight: 700;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.draft-source[data-state='missing'] {
-  color: var(--danger);
+.draft-chip {
+  padding: calc(1px * var(--design-scale)) calc(6px * var(--design-scale));
+  border-radius: var(--radius-full);
+  background: rgb(244 206 0 / 14%);
+  color: var(--gold-text);
+  font-size: calc(8px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
-/* --- advantage --------------------------------------------------------------- */
-
+/* --- advantage --------------------------------------------------------------------------------- */
 .advantage {
   position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: calc(var(--space-lg) * var(--design-scale));
-  padding: calc(var(--space-md) * var(--design-scale)) calc(var(--space-lg) * var(--design-scale));
+  gap: calc(10px * var(--design-scale));
+  padding: calc(4px * var(--design-scale)) calc(10px * var(--design-scale))
+    calc(13px * var(--design-scale));
   border-radius: var(--radius);
-  background: rgb(10 14 24 / 85%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
+  background: rgb(15 19 29 / 82%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%);
 }
 
-/* Advantage disembunyikan sampai kedua tim punya minimal satu pick. Angka dari satu hero
-   saja bisa tampil sebagai '+37' yang terlihat seperti hasil analisis padahal cuma
-   membandingkan satu power rating, jadi lebih jujur ditampilkan sebagai "menunggu". */
-.advantage[data-ready='false'] .advantage-value,
-.advantage[data-ready='false'] .advantage-track,
-.advantage[data-ready='false'] .advantage-team {
-  opacity: 0.25;
-}
-
-.advantage-waiting {
-  grid-column: 1 / -1;
-  margin: 0;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: calc(9px * var(--design-scale));
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.advantage[data-ready='true'] .advantage-waiting {
-  display: none;
-}
-
-.advantage[data-matrix='missing'] .advantage-waiting {
-  display: block;
+.advantage[data-ready='false'] {
+  opacity: 0.5;
 }
 
 .advantage-side {
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-xs) * var(--design-scale));
-}
-
-.advantage-side-blue {
-  align-items: flex-start;
+  align-items: baseline;
+  gap: calc(8px * var(--design-scale));
+  white-space: nowrap;
 }
 
 .advantage-team {
-  font-family: var(--font-body);
-  font-size: calc(11px * var(--design-scale));
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-
-.advantage-value {
   font-family: var(--font-display);
-  font-size: calc(30px * var(--design-scale));
-  line-height: calc(32px * var(--design-scale));
-  letter-spacing: 0.02em;
+  font-size: calc(12px * var(--design-scale));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.advantage-side-blue .advantage-value {
+.advantage-side-blue .advantage-team {
   color: var(--cyan);
 }
 
-.advantage-side-red .advantage-value {
+.advantage-side-red .advantage-team {
   color: var(--rose);
-  text-align: right;
 }
 
-/* Meteran ballistic: track gelap penuh, isi menyala. Penanda tengah adalah bujur sangkar
-   diputar 45 derajat, penanda khas desain ini. */
+.advantage-value {
+  font-family: var(--font-mono);
+  font-size: calc(13px * var(--design-scale));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-surface);
+}
+
 .advantage-track {
   position: relative;
-  height: calc(10px * var(--design-scale));
+  display: flex;
+  height: calc(8px * var(--design-scale));
   border-radius: var(--radius-full);
   background: var(--surface-highest);
   overflow: hidden;
-  box-shadow: inset 0 2px 4px rgb(0 0 0 / 40%);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 45%);
 }
 
 .advantage-fill {
-  height: 100%;
   width: 0;
-  border-radius: var(--radius-full);
+  height: 100%;
   background: var(--cyan);
-  box-shadow: 0 0 18px var(--cyan);
-  transition: width 260ms ease-out;
+  box-shadow: var(--glow-cyan);
+  transition: width 220ms ease-out;
 }
 
 .advantage-fill[data-leader='red'] {
   background: var(--rose);
-  box-shadow: 0 0 18px var(--rose);
+  box-shadow: var(--glow-rose);
 }
 
 .advantage-fill[data-leader='tie'] {
@@ -278,313 +296,474 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: calc(14px * var(--design-scale));
+  width: calc(4px * var(--design-scale));
   height: calc(14px * var(--design-scale));
   transform: translate(-50%, -50%) rotate(45deg);
-  background: var(--gold-bright);
-  box-shadow: var(--glow-gold);
+  background: var(--on-surface);
+  opacity: 0.55;
 }
 
-/* --- board ------------------------------------------------------------------- */
+.advantage-waiting {
+  position: absolute;
+  left: 50%;
+  bottom: calc(-1px * var(--design-scale));
+  margin: 0;
+  transform: translateX(-50%);
+  font-size: calc(8px * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
+/* --- board utama: pick | jangkar | pick ------------------------------------------------------ */
 .draft-board {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 0.72fr) 1fr;
-  gap: calc(var(--space-lg) * var(--design-scale));
-  flex: 1;
-  min-height: 0;
+  grid-template-columns: 1fr minmax(0, 0.78fr) 1fr;
+  gap: calc(8px * var(--design-scale));
+  align-items: stretch;
 }
 
 .board-side {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-sm) * var(--design-scale));
-  min-height: 0;
-  padding: calc(var(--space-md) * var(--design-scale));
-  padding-inline-start: calc(var(--space-lg) * var(--design-scale));
+  gap: calc(4px * var(--design-scale));
+  min-width: 0;
+}
+
+.board-picks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(4px * var(--design-scale));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-picks:empty::before {
+  content: 'menunggu pick';
+  grid-column: 1 / -1;
+  padding: calc(20px * var(--design-scale));
+  border: calc(1px * var(--design-scale)) dashed var(--hairline);
   border-radius: var(--radius);
-  background: rgb(23 27 38 / 90%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
-  overflow: hidden;
-}
-
-/* Rel cahaya di sisi tim. Inilah yang di mockup menggantikan chamfer 45 derajat. */
-.board-blue::before,
-.board-red::before {
-  content: '';
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: calc(6px * var(--design-scale));
-}
-
-.board-blue::before {
-  background: var(--cyan);
-  box-shadow: 0 0 16px var(--cyan);
-}
-
-.board-red::before {
-  background: var(--rose);
-  box-shadow: 0 0 16px var(--rose);
-}
-
-.board-head {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-sm) * var(--design-scale));
-}
-
-/* Nama tim memakai Anton uppercase: di mockup ini yang membentuk hierarki paling atas di
-   setiap sayap, di atas badge dan komposisi role. */
-.board-title {
-  font-family: var(--font-display);
-  font-size: calc(22px * var(--design-scale));
-  line-height: calc(24px * var(--design-scale));
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--on-surface);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.board-badge {
-  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-sm) * var(--design-scale));
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
   font-size: calc(9px * var(--design-scale));
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-align: center;
   text-transform: uppercase;
+  color: var(--muted);
 }
 
-.board-blue .board-badge {
-  background: var(--cyan);
-  color: var(--on-cyan-container);
-}
-
-.board-badge-enemy,
-.board-red .board-badge {
-  background: var(--rose);
-  color: var(--on-rose-container);
-}
-
-/* Komposisi role: membuat alasan rekomendasi seperti "Butuh marksman" jadi sesuatu yang
-   bisa dilihat, bukan sekadar teks. Baris kecil, jadi tidak merebut ruang pick. */
 .board-composition {
   display: flex;
-  align-items: center;
-  gap: calc(var(--space-xs) * var(--design-scale));
   flex-wrap: wrap;
-  margin-inline-start: auto;
+  gap: calc(3px * var(--design-scale));
 }
 
 .role-pill {
-  padding: calc(1px * var(--design-scale)) calc(6px * var(--design-scale));
-  border-radius: var(--radius-full);
+  padding: calc(1px * var(--design-scale)) calc(5px * var(--design-scale));
+  border-radius: var(--radius-sm);
   background: var(--surface-container);
-  color: var(--muted);
-  font-family: var(--font-mono);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 5%);
   font-size: calc(8px * var(--design-scale));
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  white-space: nowrap;
+  color: var(--muted);
 }
 
 .role-pill[data-role='unknown'] {
   display: none;
 }
 
-/* --- slot ban dan pick ------------------------------------------------------- */
-
-.board-bans,
-.board-picks {
-  display: grid;
-  gap: calc(var(--space-xs) * var(--design-scale));
+/* --- slot ban ---------------------------------------------------------------------------------- */
+.board-bans {
+  display: flex;
+  gap: calc(4px * var(--design-scale));
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.board-bans {
-  grid-template-columns: repeat(5, 1fr);
-}
-
-.board-picks {
-  grid-template-columns: repeat(2, 1fr);
-  gap: calc(var(--space-sm) * var(--design-scale));
-}
-
-.board-picks:empty::before {
-  content: 'menunggu pick';
-  grid-column: 1 / -1;
-  padding: calc(var(--space-md) * var(--design-scale));
+.board-bans:empty::before {
+  content: 'belum ada ban';
+  padding: calc(6px * var(--design-scale)) calc(8px * var(--design-scale));
+  border: calc(1px * var(--design-scale)) dashed var(--hairline);
   border-radius: var(--radius-sm);
-  background: var(--surface-lowest);
-  color: var(--outline);
-  font-family: var(--font-mono);
-  font-size: calc(9px * var(--design-scale));
-  letter-spacing: 0.08em;
+  font-size: calc(8px * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  text-align: center;
+  color: var(--muted);
 }
 
+/* --- slot pick --------------------------------------------------------------------------------- */
 .hero-slot {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: calc(var(--space-sm) * var(--design-scale));
+  flex-direction: column;
+  height: calc(180px * var(--design-scale));
   overflow: hidden;
   border-radius: var(--radius-sm);
-  background: var(--surface-low);
+  background: linear-gradient(180deg, var(--surface-low), var(--surface-lowest));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 5%);
 }
 
-.hero-slot img {
-  width: calc(34px * var(--design-scale));
-  height: calc(34px * var(--design-scale));
-  object-fit: cover;
-  flex-shrink: 0;
+.board-blue .hero-slot {
+  box-shadow: inset 0 0 0 1px rgb(0 229 255 / 18%);
 }
 
-/* Slot ban: gambar jadi hitam-putih lalu diselubung merah, persis seperti dock ban di
-   mockup. Dulu hanya diredupkan 40% sehingga ban masih terbaca sebagai pick. */
-.hero-slot[data-kind='ban'] img {
-  filter: grayscale(1);
+.board-red .hero-slot {
+  box-shadow: inset 0 0 0 1px rgb(255 82 95 / 18%);
 }
 
-.hero-slot[data-kind='ban']::before {
-  content: '';
+/* Tag role di pojok kiri atas; slot yang harus diisi ditandai emas. */
+.hero-role,
+.hero-next {
   position: absolute;
-  inset: 0;
-  background: rgb(147 0 10 / 40%);
-  pointer-events: none;
-}
-
-.hero-slot[data-kind='ban'] .hero-name {
-  color: var(--danger);
-}
-
-.hero-slot[data-kind='ban']::after {
-  content: '\00d7';
-  position: absolute;
-  inset-inline-end: calc(var(--space-xs) * var(--design-scale));
-  bottom: 0;
-  color: var(--danger);
-  font-family: var(--font-body);
-  font-weight: 900;
-  font-size: calc(13px * var(--design-scale));
-  line-height: 1;
-  pointer-events: none;
-}
-
-.hero-slot[data-empty='true'] {
-  background: var(--surface-high);
-  box-shadow: inset 0 0 0 1px var(--surface-highest);
-}
-
-.hero-slot[data-empty='true'] img {
-  display: none;
-}
-
-.hero-name {
-  font-family: var(--font-body);
-  font-size: calc(11px * var(--design-scale));
-  font-weight: 700;
-  line-height: calc(14px * var(--design-scale));
-  color: var(--on-surface);
-  white-space: nowrap;
+  top: calc(3px * var(--design-scale));
+  left: calc(3px * var(--design-scale));
+  z-index: 3;
+  max-width: calc(90% * var(--design-scale));
   overflow: hidden;
+  padding: calc(1px * var(--design-scale)) calc(4px * var(--design-scale));
+  border-radius: var(--radius-sm);
+  font-size: calc(7px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   text-overflow: ellipsis;
-  padding-inline-end: calc(var(--space-xs) * var(--design-scale));
+  white-space: nowrap;
 }
 
-.hero-slot[data-empty='true'] .hero-name {
-  color: var(--outline);
+.hero-role {
+  background: rgb(10 14 24 / 78%);
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%);
 }
 
-/* Slot yang harus diisi sekarang. Penandanya datang dari resolveTurn(), bukan dari "slot pick
-   terakhir" seperti sebelumnya. */
-.hero-slot[data-next='true'] {
-  box-shadow: inset 0 0 0 2px var(--gold), 0 0 12px rgb(244 206 0 / 55%);
+.hero-next {
+  top: auto;
+  bottom: calc(28px * var(--design-scale));
+  left: calc(3px * var(--design-scale));
+  background: var(--gold);
+  color: var(--on-gold);
   animation: draft-next-pulse 1.6s ease-in-out infinite;
 }
 
-.hero-slot[data-next='true']::before {
-  background: rgb(10 14 24 / 78%);
+.hero-slot[data-kind='pick'] img {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: calc(14px * var(--design-scale)) calc(3px * var(--design-scale))
+    calc(3px * var(--design-scale));
+  object-fit: contain;
 }
 
-/* Tag BAN/PICK di slot aktif. Dia elemen sungguhan, bukan ::after, karena slot ban sudah memakai
-   ::after untuk tanda silang dan slot kosong tidak punya .hero-name untuk ditumpuki label. */
-.hero-next {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-body);
-  font-size: calc(9px * var(--design-scale));
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  line-height: calc(12px * var(--design-scale));
-  color: var(--gold-bright);
-  pointer-events: none;
+.hero-slot[data-kind='pick'] .hero-name {
+  display: block;
+  padding: calc(4px * var(--design-scale)) calc(2px * var(--design-scale));
+  background: #000;
+  font-family: var(--font-display);
+  font-size: calc(10px * var(--design-scale));
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-blue .hero-slot[data-kind='pick'] .hero-name {
+  border-top: calc(2px * var(--design-scale)) solid var(--cyan);
+  color: #fff;
+}
+
+.board-red .hero-slot[data-kind='pick'] .hero-name {
+  border-top: calc(2px * var(--design-scale)) solid var(--rose);
+  color: #fff;
+}
+
+/* Slot yang harus diisi sekarang: tepi emas, sesuai mockup. */
+.hero-slot[data-next='true'] {
+  box-shadow: inset 0 0 0 calc(2px * var(--design-scale)) var(--gold),
+    0 0 calc(18px * var(--design-scale)) rgb(244 206 0 / 25%);
+}
+
+.hero-slot[data-empty='true'] {
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 2%) 0 6px,
+    transparent 6px 12px
+  );
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%);
 }
 
 @keyframes draft-next-pulse {
-
   0%,
   100% {
-    box-shadow: inset 0 0 0 2px var(--gold), 0 0 12px rgb(244 206 0 / 65%);
+    opacity: 1;
   }
 
   50% {
-    box-shadow: inset 0 0 0 2px var(--gold), 0 0 2px rgb(244 206 0 / 28%);
+    opacity: 0.55;
   }
 }
 
-/* Animasi sengaja dimatikan kalau sistem meminta reduced motion. Di OBS tetap jalan, karena
-   overlay memang dirancang untuk ditonton, bukan diklik. */
-@media (prefers-reduced-motion: reduce) {
-  .hero-slot[data-next='true'] {
-    animation: none;
-  }
+/* --- slot ban: Kotak kecil dengan tanda silang merah, seperti mockup. -------------------------- */
+.board-bans .hero-slot {
+  flex: 0 0 auto;
+  width: calc(34px * var(--design-scale));
+  height: calc(34px * var(--design-scale));
+  border-radius: var(--radius-sm);
+  background: var(--surface-lowest);
 }
 
-/* --- matchup kunci ----------------------------------------------------------- */
+.board-bans .hero-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) brightness(0.45);
+}
 
-.board-matchups {
-  position: relative;
+/* Wash merah tipis di atas artwork, supaya ban terbaca sebagai "tidak boleh dipakai" tanpa
+   perlu tanda baca tambahan. */
+.board-bans .hero-slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgb(255 82 95 / 22%);
+}
+
+/* Tanda silang. Dipakai ::after supaya elemen .hero-next tetap bisa menempel di slot ban. */
+.board-bans .hero-slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(45deg, transparent 45%, rgb(255 82 95 / 85%) 47%, rgb(255 82 95 / 85%) 53%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, rgb(255 82 95 / 85%) 47%, rgb(255 82 95 / 85%) 53%, transparent 55%);
+}
+
+.board-bans .hero-slot .hero-name {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: calc(1px * var(--design-scale)) calc(2px * var(--design-scale));
+  background: rgb(0 0 0 / 78%);
+  font-size: calc(6.5px * var(--design-scale));
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--rose-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.board-bans .hero-slot .hero-next {
+  bottom: calc(11px * var(--design-scale));
+  font-size: calc(6.5px * var(--design-scale));
+}
+
+/* --- jangkar tengah: jam, giliran, seri, matchup ------------------------------------------------ */
+.draft-anchor {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-sm) * var(--design-scale));
-  padding: calc(var(--space-md) * var(--design-scale));
+  gap: calc(5px * var(--design-scale));
+  min-width: 0;
+  padding: calc(6px * var(--design-scale));
   border-radius: var(--radius);
-  background: rgb(10 14 24 / 85%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
+  background: rgb(10 14 24 / 90%);
+  box-shadow: inset 0 0 0 1px rgb(0 229 255 / 16%);
+}
+
+.anchor-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6px * var(--design-scale));
+  padding: calc(3px * var(--design-scale));
+  border-radius: var(--radius-sm);
+  background: rgb(5 17 25 / 90%);
+  box-shadow: inset 0 0 0 1px rgb(0 229 255 / 22%);
+}
+
+.anchor-timer-dot {
+  width: calc(6px * var(--design-scale));
+  height: calc(6px * var(--design-scale));
+  border-radius: var(--radius-full);
+  background: var(--surface-highest);
+}
+
+.anchor-timer-dot[data-running='true'] {
+  background: var(--cyan);
+  box-shadow: 0 0 calc(8px * var(--design-scale)) var(--cyan);
+}
+
+.anchor-timer-value {
+  font-family: var(--font-display);
+  font-size: calc(20px * var(--design-scale));
+  line-height: 1;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  text-shadow: 0 0 calc(10px * var(--design-scale)) rgb(0 229 255 / 60%);
+  font-variant-numeric: tabular-nums;
+}
+
+.anchor-turn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(8px * var(--design-scale));
+  padding: calc(4px * var(--design-scale)) 0;
+}
+
+/* Panah arah giliran. Bentuk segitiga dibuat dari border, bukan clip-path, supaya aturan
+   "tanpa clip-path" di apex.css tetap berlaku utuh. Yang hidup mengikuti `data-side`. */
+.anchor-chevron {
+  width: 0;
+  height: 0;
+  border-block: calc(7px * var(--design-scale)) solid transparent;
+  border-inline-end: calc(10px * var(--design-scale)) solid currentcolor;
+}
+
+.anchor-chevron-idle {
+  color: var(--surface-highest);
+  transform: rotate(180deg);
+}
+
+.anchor-chevron-live {
+  color: var(--surface-highest);
+  transform: rotate(0deg);
+}
+
+.anchor-chevron-live[data-side='blue'] {
+  color: var(--cyan);
+  filter: drop-shadow(0 0 calc(6px * var(--design-scale)) rgb(0 229 255 / 70%));
+}
+
+.anchor-chevron-live[data-side='red'] {
+  color: var(--rose);
+  filter: drop-shadow(0 0 calc(6px * var(--design-scale)) rgb(255 82 95 / 70%));
+}
+
+.anchor-turn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: calc(64px * var(--design-scale));
+}
+
+.anchor-turn-label {
+  font-size: calc(7px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.anchor-turn-phase {
+  font-family: var(--font-display);
+  font-size: calc(12px * var(--design-scale));
+  line-height: 1.1;
+  letter-spacing: 0.1em;
+  color: var(--on-surface);
+}
+
+.anchor-series {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(5px * var(--design-scale));
+  flex-wrap: wrap;
+}
+
+.anchor-series-team {
+  font-size: calc(8px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.anchor-series-team:first-child {
+  color: var(--cyan);
+}
+
+.anchor-series-team:last-child {
+  color: var(--rose);
+}
+
+.anchor-series-bars {
+  display: flex;
+  gap: calc(2px * var(--design-scale));
+  min-width: calc(28px * var(--design-scale));
+  justify-content: center;
+}
+
+.anchor-series-bars:empty::after {
+  content: '—';
+  color: var(--surface-highest);
+}
+
+.anchor-series-score {
+  font-size: calc(7px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--outline);
+}
+
+.anchor-series-bar {
+  width: calc(11px * var(--design-scale));
+  height: calc(5px * var(--design-scale));
+  border-radius: calc(1px * var(--design-scale));
+  background: var(--surface-highest);
+}
+
+.anchor-series-bar[data-state='win'] {
+  background: var(--cyan);
+}
+
+.anchor-series-bar[data-state='win'][data-side='red'] {
+  background: var(--rose);
+}
+
+/* --- matchup ----------------------------------------------------------------------------------- */
+.board-matchups {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3px * var(--design-scale));
+  flex: 1;
   min-height: 0;
 }
 
 .board-matchups-title,
 .recommend-title {
   margin: 0;
-  font-family: var(--font-body);
-  font-size: calc(10px * var(--design-scale));
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--design-scale));
+  font-size: calc(8px * var(--design-scale));
   font-weight: 900;
-  line-height: calc(12px * var(--design-scale));
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--on-surface-variant);
+  color: var(--outline);
 }
 
 .matchup-list {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-xs) * var(--design-scale));
+  gap: calc(2px * var(--design-scale));
   margin: 0;
   padding: 0;
   list-style: none;
@@ -595,15 +774,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(var(--space-sm) * var(--design-scale));
-  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-sm) * var(--design-scale));
+  gap: calc(6px * var(--design-scale));
+  padding: calc(2px * var(--design-scale)) calc(5px * var(--design-scale));
   border-radius: var(--radius-sm);
-  background: var(--surface-lowest);
-  font-family: var(--font-body);
-  font-size: calc(10px * var(--design-scale));
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  background: rgb(255 255 255 / 3%);
+  font-size: calc(9px * var(--design-scale));
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .matchup-win {
@@ -616,99 +794,89 @@ body {
 
 .matchup-delta {
   font-family: var(--font-mono);
+  font-size: calc(9px * var(--design-scale));
   font-weight: 700;
-  font-size: calc(11px * var(--design-scale));
-  letter-spacing: -0.02em;
-  color: var(--on-surface);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
-/* --- rekomendasi -------------------------------------------------------------- */
-
-/* Judul rekomendasi ikut fase: warna dan kata keduanya berubah antara ban dan pick. */
+/* --- rekomendasi -------------------------------------------------------------------------------- */
 .recommend {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-sm) * var(--design-scale));
-  padding: calc(var(--space-md) * var(--design-scale));
-  border-radius: var(--radius-lg);
-  background: rgb(23 27 38 / 92%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
-}
-
-.recommend-title {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-sm) * var(--design-scale));
+  gap: calc(4px * var(--design-scale));
+  padding: calc(6px * var(--design-scale)) calc(9px * var(--design-scale));
+  border-radius: var(--radius);
+  background: rgb(15 19 29 / 86%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%);
 }
 
 .recommend-action {
-  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-sm) * var(--design-scale));
+  padding: calc(1px * var(--design-scale)) calc(5px * var(--design-scale));
   border-radius: var(--radius-sm);
+  font-size: calc(9px * var(--design-scale));
   font-weight: 900;
-  letter-spacing: 0.12em;
 }
 
 .recommend[data-purpose='ban'] .recommend-action {
-  background: var(--danger-container);
-  color: var(--danger);
+  background: rgb(255 82 95 / 18%);
+  color: var(--rose);
 }
 
 .recommend[data-purpose='pick'] .recommend-action {
-  background: var(--cyan);
-  color: var(--on-cyan);
+  background: rgb(0 229 255 / 18%);
+  color: var(--cyan);
 }
 
 .recommend-side {
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-family: var(--font-display);
+  font-size: calc(12px * var(--design-scale));
+  line-height: 1;
+  letter-spacing: 0.1em;
 }
 
+.recommend-side[data-side='blue'],
 .recommend[data-side='blue'] .recommend-side {
   color: var(--cyan);
 }
 
+.recommend-side[data-side='red'],
 .recommend[data-side='red'] .recommend-side {
   color: var(--rose);
 }
 
-/* Penjelasan singkat di judul, supaya operator tahu angka daftar ini mencari apa. */
 .recommend-hint {
-  font-family: var(--font-body);
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--outline);
+  color: var(--muted);
 }
 
 .recommend-list {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: calc(var(--space-sm) * var(--design-scale));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(5px * var(--design-scale));
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .recommend-item {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: calc(var(--space-sm) * var(--design-scale));
-  overflow: hidden;
-  padding: calc(var(--space-xs) * var(--design-scale));
-  padding-inline-start: calc(var(--space-md) * var(--design-scale));
+  gap: calc(6px * var(--design-scale));
+  min-width: 0;
+  padding: calc(4px * var(--design-scale));
   border-radius: var(--radius-sm);
-  background: var(--surface-lowest);
+  background: var(--surface-low);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 4%);
 }
 
 .recommend-thumb {
-  width: calc(28px * var(--design-scale));
-  height: calc(28px * var(--design-scale));
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  width: calc(26px * var(--design-scale));
+  height: calc(26px * var(--design-scale));
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .recommend-body {
@@ -719,22 +887,19 @@ body {
 }
 
 .recommend-name {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: calc(11px * var(--design-scale));
-  font-weight: 800;
-  line-height: calc(14px * var(--design-scale));
-  color: var(--on-surface);
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .recommend-why {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: calc(9px * var(--design-scale));
-  line-height: calc(12px * var(--design-scale));
-  letter-spacing: 0.04em;
+  font-size: calc(8px * var(--design-scale));
+  font-weight: 700;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -742,10 +907,44 @@ body {
 }
 
 .recommend-score {
-  font-family: var(--font-display);
-  font-size: calc(17px * var(--design-scale));
-  line-height: calc(18px * var(--design-scale));
-  letter-spacing: 0.02em;
-  color: var(--gold-bright);
-  text-shadow: 0 0 12px rgb(244 206 0 / 40%);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--design-scale));
+  font-weight: 700;
+  color: var(--gold);
+  flex: 0 0 auto;
+}
+
+/* --- footer -------------------------------------------------------------------------------------- */
+.draft-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(2px * var(--design-scale));
+  border-top: calc(1px * var(--design-scale)) solid rgb(0 229 255 / 14%);
+}
+
+.draft-source {
+  font-family: var(--font-mono);
+  font-size: calc(8px * var(--design-scale));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--outline);
+}
+
+.draft-source[data-state='missing'] {
+  color: var(--rose);
+}
+
+.draft-source[data-state='curated'] {
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-next {
+    animation: none;
+  }
+
+  .advantage-fill {
+    transition: none;
+  }
 }

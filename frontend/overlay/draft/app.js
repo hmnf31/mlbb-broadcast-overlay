@@ -52,6 +52,15 @@ const ui = {
   recommendHint: document.getElementById('recommend-hint'),
   recommendSide: document.getElementById('recommend-side'),
   recommendList: document.getElementById('recommend-list'),
+  // Jangkar tengah
+  timer: document.getElementById('draft-timer'),
+  timerDot: document.querySelector('.anchor-timer-dot'),
+  anchorPhase: document.getElementById('anchor-turn-phase'),
+  anchorChevron: document.querySelector('.anchor-chevron-live'),
+  anchorBlueName: document.getElementById('anchor-blue-name'),
+  anchorRedName: document.getElementById('anchor-red-name'),
+  anchorSeriesBlue: document.getElementById('anchor-series-blue'),
+  anchorSeriesRed: document.getElementById('anchor-series-red'),
 };
 
 let matrix = null;
@@ -110,6 +119,12 @@ function heroSlot(heroId, options = {}) {
     setHeroImage(image, heroId, entry);
     image.alt = entry?.name || heroId;
     item.append(image);
+    // Role asli hero dari matriks, bukan label lane. Urutan pick kita adalah urutan draft,
+    // bukan posisi lane, jadi menulis EXP/JUNGLE/GOLD di sini akan jadi klaim yang salah.
+    const role = document.createElement('span');
+    role.className = 'hero-role';
+    role.textContent = entry?.role && entry.role !== 'unknown' ? entry.role : '';
+    if (role.textContent) item.append(role);
     const label = document.createElement('span');
     label.className = 'hero-name';
     label.textContent = entry?.name || heroId;
@@ -248,7 +263,9 @@ function renderTurn(turn) {
 function render(payload) {
   const draft = payload?.draft || {};
   const teams = payload?.teams || {};
+  const match = payload?.match || {};
   lastPayload = payload;
+  timerSource = match;
 
   // Visibility dulu, baru skala: shell yang tersembunyi punya clientWidth 0.
   shell.dataset.visible = draft.visible === true ? 'true' : 'false';
@@ -264,6 +281,7 @@ function render(payload) {
   const turn = report.turn;
 
   renderTurn(turn);
+  renderAnchor(match, turn, teams);
 
   // Advantage baru ditampilkan setelah kedua tim punya pick. Tanpa gerbang ini angka dari satu
   // hero saja muncul sebagai "+37" yang terlihat seperti hasil analisis padahal cuma
@@ -299,6 +317,79 @@ function signed(value) {
   return `${numeric > 0 ? '+' : ''}${numeric}`;
 }
 
+// Jam dihitung LOKAL dari anchor, sama seperti overlay gameplay: `match.timer` adalah nilai
+// pada detik `match.timerAt`. Kalau `timerRunning` true, overlay mengurangi selisih waktu
+// sendiri, jadi server tidak perlu push apa pun per detik dan angka tidak pernah berkedip
+// karena kiriman yang datang terlambat.
+function timerSeconds(match, now = Date.now()) {
+  const base = Number(match?.timer) || 0;
+  const anchorAt = Number(match?.timerAt);
+  if (match?.timerRunning !== true || !Number.isFinite(anchorAt) || anchorAt <= 0) return base;
+  const elapsed = Math.floor(Math.max(0, now - anchorAt) / 1000);
+  return Math.max(0, base - elapsed);
+}
+
+function renderTimer(match) {
+  const seconds = timerSeconds(match);
+  ui.timer.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  if (ui.timerDot) ui.timerDot.dataset.running = match?.timerRunning === true ? 'true' : 'false';
+}
+
+// Timer harus dihitung ulang tiap detik walau tidak ada snapshot yang masuk. Tanpa ini angka
+// hanya berkurang saat ada kiriman state, dan satu anchor akan membekukan jam di layar.
+// `timerSource` menyimpan match terakhir yang sudah digabung supaya ticker tidak perlu masuk
+// ke logic render lagi.
+let timerSource = null;
+let timerTicker = null;
+
+function ensureTimerTicker() {
+  if (timerTicker) return;
+  timerTicker = setInterval(() => {
+    if (timerSource) renderTimer(timerSource);
+  }, 1000);
+  // Di browser ini angka biasa; di Node (harness test yang memuat app.js ini) `unref`
+  // mencegah interval ini menahan proses dari keluar.
+  timerTicker?.unref?.();
+}
+
+// Skor seri digambar sebagai bar, bukan angka: jumlah bar langsung terbaca sebagai
+// penghitung seri. Angka asli disimpan di `aria-label` supaya screen reader dan test tidak
+// kehilangan angkanya.
+function renderSeriesBars(element, won, needed, side) {
+  element.replaceChildren();
+  element.setAttribute('aria-label', `${side} ${won} dari ${needed}`);
+  if (needed < 1 || needed > 5) return;
+  for (let index = 0; index < needed; index += 1) {
+    const bar = document.createElement('span');
+    bar.className = 'anchor-series-bar';
+    bar.dataset.state = index < won ? 'win' : 'lose';
+    if (side === 'red') bar.dataset.side = 'red';
+    element.append(bar);
+  }
+}
+
+// Jangkar tengah: jam match, arah giliran, dan skor seri. Semuanya diturunkan dari state,
+// tidak ada satu pun angka yang diisi manual di halaman ini.
+function renderAnchor(match, turn, teams) {
+  ui.anchorBlueName.textContent = teams.blue?.name || 'BLUE';
+  ui.anchorRedName.textContent = teams.red?.name || 'RED';
+
+  ui.anchorPhase.textContent = turn.complete ? 'DONE' : String(turn.phase || 'BAN').toUpperCase();
+  if (turn.complete) {
+    ui.anchorChevron.removeAttribute('data-side');
+  } else {
+    ui.anchorChevron.dataset.side = turn.side === 'red' ? 'red' : 'blue';
+  }
+
+  const games = Array.isArray(match?.bo2?.games) ? match.bo2.games : [];
+  const active = match?.bo2?.enabled === true && games.length > 0;
+  const needed = active ? Math.ceil(Math.max(1, Number(match?.bo2?.bestOf) || 0) / 2) : 0;
+  renderSeriesBars(ui.anchorSeriesBlue, active ? games.filter((game) => game?.winner === 'blue').length : 0, needed, 'blue');
+  renderSeriesBars(ui.anchorSeriesRed, active ? games.filter((game) => game?.winner === 'red').length : 0, needed, 'red');
+
+  renderTimer(match);
+}
+
 const socket = window.LiveSocket.create({
   role: 'overlay',
   slug,
@@ -326,5 +417,6 @@ if (!slug) {
 loadMatrix();
 applyDesignScale();
 render(null);
+ensureTimerTicker();
 socket.start();
 window.addEventListener('resize', applyDesignScale);

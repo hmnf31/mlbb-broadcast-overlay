@@ -9,24 +9,52 @@
   </head>
   <body>
     <div class="result-shell" id="result-shell" data-visible="false" data-outcome="win" data-mode="mvp">
-      <!-- Banner dan skor seri tetap di luar panel mode: keduanya dipakai di kedua tampilan,
-           dan ID-nya dipakai test-overlay-render.mjs. -->
-      <div class="result-banner" id="result-banner">
-        <span class="result-headline" id="result-headline">VICTORY</span>
-        <span class="result-subline" id="result-subline"></span>
+      <!-- Ticker atas. Isinya hanya data yang benar-benar ada di state: stage, nomor game,
+           format seri, dan hasil game ini. Nama metastreaming, patch, dan sponsor tidak
+           dicetak karena tidak punya sumber data, dan teks karangan di layar live adalah
+           kesalahan yang tidak bisa ditarik kembali. -->
+      <div class="result-ticker">
+        <span class="ticker-lead"><i class="ticker-dot" aria-hidden="true"></i><span id="ticker-stage">FINAL</span></span>
+        <span class="ticker-item">GAME <span id="ticker-game">1</span></span>
+        <span class="ticker-item" id="ticker-format">-</span>
+        <span class="ticker-flag" id="ticker-state">FINAL</span>
       </div>
 
-      <div class="result-score">
-        <div class="result-team result-team-blue">
-          <span class="result-team-name" id="result-blue-name">Blue</span>
-          <span class="result-team-score" id="result-blue-score">0</span>
+      <!-- Header. Banner hasil dan skor seri tetap di sini karena keduanya dipakai kedua mode,
+           dan ID-nya dipakai test-overlay-render.mjs. -->
+      <header class="result-banner" id="result-banner">
+        <div class="result-side result-side-blue">
+          <div class="result-verdict">
+            <span class="result-verdict-label">MATCH WINNER</span>
+            <span class="result-team-name" id="result-blue-name">Blue</span>
+          </div>
+          <div class="result-kills">
+            <span class="result-kills-value" id="result-blue-kills">0</span>
+            <span class="result-kills-label">TEAM KILLS</span>
+          </div>
         </div>
-        <span class="result-separator">-</span>
-        <div class="result-team result-team-red">
-          <span class="result-team-score" id="result-red-score">0</span>
-          <span class="result-team-name" id="result-red-name">Red</span>
+
+        <div class="result-core">
+          <span class="result-headline" id="result-headline">VICTORY</span>
+          <span class="result-subline" id="result-subline"></span>
+          <div class="result-score">
+            <span class="result-team-score" id="result-blue-score">0</span>
+            <span class="result-separator">-</span>
+            <span class="result-team-score" id="result-red-score">0</span>
+          </div>
         </div>
-      </div>
+
+        <div class="result-side result-side-red">
+          <div class="result-kills">
+            <span class="result-kills-value" id="result-red-kills">0</span>
+            <span class="result-kills-label">TEAM KILLS</span>
+          </div>
+          <div class="result-verdict">
+            <span class="result-team-name" id="result-red-name">Red</span>
+            <span class="result-verdict-label">RUNNER UP</span>
+          </div>
+        </div>
+      </header>
 
       <div class="result-stage" id="result-stage">
         <!-- Mode A: kartu MVP -->
@@ -78,7 +106,8 @@
           </div>
         </section>
 
-        <!-- Mode B: scoreboard penuh 10 pemain -->
+        <!-- Mode B: scoreboard 10 pemain, disusun tiga kolom seperti mockup: roster BLUE di
+             kiri, kolom tengah objectives, roster RED di kanan. -->
         <section class="board-panel" id="scoreboard-panel" aria-label="Scoreboard">
           <div class="board-team board-team-blue">
             <header class="board-team-head">
@@ -97,8 +126,21 @@
           </div>
         </section>
 
-        <!-- Objectives + catatan caster, dipakai kedua mode. -->
+        <!-- Objectives + catatan caster, dipakai kedua mode. Di mode scoreboard kolom ini
+             menjadi tengah mockup. -->
         <aside class="result-aside">
+          <div class="objective-gold">
+            <div class="objective-gold-side">
+              <span class="objective-gold-value" id="center-gold-blue">0</span>
+              <span class="objective-gold-label">TOTAL GOLD</span>
+            </div>
+            <span class="objective-gold-coin" aria-hidden="true">$</span>
+            <div class="objective-gold-side">
+              <span class="objective-gold-value" id="center-gold-red">0</span>
+              <span class="objective-gold-label">TOTAL GOLD</span>
+            </div>
+          </div>
+
           <dl class="objective-list">
             <div class="objective-row">
               <dt>Turtle</dt>

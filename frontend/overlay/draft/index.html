@@ -9,23 +9,37 @@
   </head>
   <body>
     <div class="draft-shell" id="draft-shell" data-visible="false">
-      <!-- Header sekarang satu blok: giliran yang sedang berjalan jadi elemen utama, bukan
-           "ROUND n" yang diisi manual. Advantage di bawahnya mengikuti giliran itu. -->
+      <!-- Baris atas: ban kiri, inti fase, ban kanan.
+           Ban pindah ke sini supaya urutannya terbaca dari kiri ke kanan seperti di layar
+           broadcast: ban BLUE, giliran yang sedang berjalan, ban RED. advantage tetap di
+           bawahnya karena angkanya berasal dari matriks kurasi dan harus terlihat Operator. -->
       <header class="draft-header">
-        <div class="draft-header-left">
-          <span class="draft-phase" id="draft-phase" data-phase="ban">BAN</span>
-          <div class="draft-turn">
-            <span class="draft-turn-side" id="draft-turn-side" data-side="blue">BLUE</span>
-            <span class="draft-turn-step" id="draft-turn-step">1 / 20</span>
+        <section class="draft-rail" data-side="blue">
+          <div class="draft-rail-badge">
+            <span class="draft-rail-name" id="board-blue-title">BLUE</span>
+            <span class="board-badge">ALLY</span>
           </div>
-        </div>
+          <ol class="board-bans" id="board-blue-bans" aria-label="Ban biru"></ol>
+        </section>
 
-        <div class="draft-header-right">
+        <section class="draft-core">
+          <div class="draft-core-turn">
+            <span class="draft-phase" id="draft-phase" data-phase="ban">BAN</span>
+            <div class="draft-turn">
+              <span class="draft-turn-side" id="draft-turn-side" data-side="blue">BLUE</span>
+              <span class="draft-turn-step" id="draft-turn-step">1 / 20</span>
+            </div>
+          </div>
           <span class="draft-chip">LIVE DRAFT</span>
-          <!-- Sumber data wajib terlihat: advantage di layar ini berasal dari tabel kurasi,
-               bukan statistik pertandingan. -->
-          <span class="draft-source" id="draft-source">matriks: memuat…</span>
-        </div>
+        </section>
+
+        <section class="draft-rail" data-side="red">
+          <ol class="board-bans" id="board-red-bans" aria-label="Ban merah"></ol>
+          <div class="draft-rail-badge">
+            <span class="board-badge board-badge-enemy">ENEMY</span>
+            <span class="draft-rail-name" id="board-red-title">RED</span>
+          </div>
+        </section>
       </header>
 
       <!-- Advantage. disembunyikan sampai kedua tim punya minimal satu pick, karena angka dari
@@ -48,31 +62,47 @@
       </section>
 
       <main class="draft-board">
+        <!-- Lima pick BLUE. Urutannya urutan draft, bukan posisi lane, jadi slot tidak
+             diberi label EXP/JUNGLE/GOLD yang tidak datanya ada. Yang tampil di pojok slot
+             adalah role asli hero dari matriks. -->
         <section class="board-side board-blue" data-side="blue">
-          <header class="board-head">
-            <span class="board-title" id="board-blue-title">BLUE</span>
-            <span class="board-badge">ALLY</span>
-            <span class="board-composition" id="composition-blue"></span>
-          </header>
-          <!-- Ban dipisah dari pick secara visual: dulu keduanya deretan img yang mirip,
-               jadi orang tidak bisa langsung tahu fase sedang ban atau pick. -->
-          <ol class="board-bans" id="board-blue-bans" aria-label="Ban biru"></ol>
           <ol class="board-picks" id="board-blue-picks" aria-label="Pick biru"></ol>
+          <div class="board-composition" id="composition-blue"></div>
         </section>
 
-        <section class="board-matchups">
-          <h2 class="board-matchups-title">KEY MATCHUPS</h2>
-          <ul class="matchup-list" id="matchup-list"></ul>
+        <!-- Jangkar tengah: jam, arah giliran, skor seri, dan matchup. -->
+        <section class="draft-anchor">
+          <div class="anchor-timer">
+            <span class="anchor-timer-dot" data-running="true"></span>
+            <span class="anchor-timer-value" id="draft-timer">00:00</span>
+          </div>
+
+          <div class="anchor-turn">
+            <span class="anchor-chevron anchor-chevron-idle" aria-hidden="true"></span>
+            <div class="anchor-turn-text">
+              <span class="anchor-turn-label">DRAFT TURN</span>
+              <span class="anchor-turn-phase" id="anchor-turn-phase">BAN</span>
+            </div>
+            <span class="anchor-chevron anchor-chevron-live" data-side="blue" aria-hidden="true"></span>
+          </div>
+
+          <div class="anchor-series">
+            <span class="anchor-series-team" id="anchor-blue-name">BLUE</span>
+            <span class="anchor-series-bars" id="anchor-series-blue" aria-label=" seri biru"></span>
+            <span class="anchor-series-score">SCORE</span>
+            <span class="anchor-series-bars" id="anchor-series-red" aria-label="seri merah"></span>
+            <span class="anchor-series-team" id="anchor-red-name">RED</span>
+          </div>
+
+          <section class="board-matchups">
+            <h2 class="board-matchups-title">KEY MATCHUPS</h2>
+            <ul class="matchup-list" id="matchup-list"></ul>
+          </section>
         </section>
 
         <section class="board-side board-red" data-side="red">
-          <header class="board-head">
-            <span class="board-badge board-badge-enemy">ENEMY</span>
-            <span class="board-title" id="board-red-title">RED</span>
-            <span class="board-composition" id="composition-red"></span>
-          </header>
-          <ol class="board-bans" id="board-red-bans" aria-label="Ban merah"></ol>
           <ol class="board-picks" id="board-red-picks" aria-label="Pick merah"></ol>
+          <div class="board-composition" id="composition-red"></div>
         </section>
       </main>
 
@@ -87,6 +117,12 @@
         </h2>
         <ol class="recommend-list" id="recommend-list"></ol>
       </section>
+
+      <!-- Sumber data wajib terlihat: advantage di layar ini berasal dari tabel kurasi, bukan
+           statistik pertandingan. -->
+      <footer class="draft-footer">
+        <span class="draft-source" id="draft-source">matriks: memuat…</span>
+      </footer>
     </div>
 
     <script src="/frontend/shared/profile.js"></script>

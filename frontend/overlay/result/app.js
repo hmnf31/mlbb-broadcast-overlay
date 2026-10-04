@@ -284,7 +284,24 @@ function renderMvpCard(players, result, preferredSide) {
   }
 }
 
-function renderScoreboard(players, series) {
+// Skor seri digambar sebagai diamond, bukan angka. Angka "0" dan "1" di sebelah nama tim
+// mudah salah baca sebagai nomor game atau nomor pemain, sedangkan jumlah diamond langsung
+// terbaca sebagai penghitung seri. Nilai asli tetap disimpan di `aria-label` supaya screen
+// reader dan test tidak kehilangan angkanya.
+function renderSeriesDots(element, won, needed, side) {
+  element.replaceChildren();
+  element.dataset.score = String(won);
+  element.setAttribute('aria-label', `${side} ${won} dari ${needed}`);
+  for (let index = 0; index < needed; index += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'apex-diamond';
+    dot.dataset.state = index < won ? 'win' : 'lose';
+    if (side === 'red') dot.dataset.side = 'red';
+    element.append(dot);
+  }
+}
+
+function renderScoreboard(players, series, match) {
   const build = (side) => {
     const container = side === 'blue' ? ui.boardBlueRows : ui.boardRedRows;
     container.replaceChildren();
@@ -333,6 +350,16 @@ function renderScoreboard(players, series) {
 
   build('blue');
   build('red');
+  // Diamond dipakai kalau panjang serinya diketahui dari `bestOf`. Tanpa itu jumlah diamond
+  // hanya bisa ditebak, dan tebakan yang salah membuat layar ini salah -- jadi angka
+  // biasa dipakai sebagai gantinya.
+  const bestOf = Math.max(1, Number(match?.bo2?.bestOf) || 0);
+  const needed = bestOf > 1 ? Math.ceil(bestOf / 2) : 0;
+  if (needed >= 1 && needed <= 5) {
+    renderSeriesDots(ui.boardBlueSeries, series.blue, needed, 'blue');
+    renderSeriesDots(ui.boardRedSeries, series.red, needed, 'red');
+    return;
+  }
   ui.boardBlueSeries.textContent = String(series?.blue ?? 0);
   ui.boardRedSeries.textContent = String(series?.red ?? 0);
 }
@@ -401,7 +428,7 @@ function render(payload) {
   ui.boardBlueName.textContent = teams.blue?.name || 'Blue';
   ui.boardRedName.textContent = teams.red?.name || 'Red';
   renderMvpCard(players, result, preferredSide);
-  renderScoreboard(players, { blue: blueScore, red: redScore });
+  renderScoreboard(players, { blue: blueScore, red: redScore }, match);
   renderObjectives(result);
 }
 

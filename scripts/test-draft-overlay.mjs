@@ -96,6 +96,12 @@ section('Boot dan sumber data');
   const source = document.getElementById('draft-source');
   check('sumber matriks ditandai curated', source.dataset.state === 'curated', source.dataset.state);
   check('patch tampil di ticker', source.textContent.includes(matrix.patch), source.textContent);
+
+  // Token desain Stitch dimuat lewat stylesheet bersama. Kalau tautannya hilang, overlay masih
+  // jalan tapi font dan warnanya jatuh ke default browser -- tepat seperti yang terjadi kalau
+  // stylesheet gagal dimuat, dan itu tidak terlihat dari log manapun.
+  const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map((node) => node.getAttribute('href'));
+  check('token desain ikut dimuat', links.includes('/frontend/shared/apex.css'), links.join(', '));
 }
 
 section('Render snapshot draft');
@@ -129,6 +135,10 @@ section('Render snapshot draft');
   check('slot ban giliran kosong', blueBans[1].dataset.empty === 'true', blueBans[1].dataset.empty);
   check('slot ban terisi tidak ditandai', blueBans[0].dataset.next !== 'true');
   check('slot pick tidak ada yang ditandai saat giliran ban', [...bluePicks, ...redPicks].every((slot) => slot.dataset.next !== 'true'));
+  // Tag BAN/PICK harus benar-benar ada, bukan hanya andalkan ::after yang dipakai slot ban
+  // untuk tanda silang.
+  check('tag giliran dirender', blueBans[1].querySelector('.hero-next')?.textContent === 'BAN', blueBans[1].textContent);
+  check('slot biasa tidak punya tag', blueBans[0].querySelector('.hero-next') === null);
 
   check('slot kosong ditandai empty', bluePicks[2].dataset.empty === 'true');
   check('slot ban ditandai kind ban', document.getElementById('board-blue-bans').children[0].dataset.kind === 'ban');

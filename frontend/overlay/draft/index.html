@@ -4,12 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Draft Overlay</title>
+    <link rel="stylesheet" href="/frontend/shared/apex.css" />
     <link rel="stylesheet" href="/frontend/overlay/draft/styles.css" />
   </head>
   <body>
-    <div class="draft-shell" id="draft-shell">
+    <div class="draft-shell" id="draft-shell" data-visible="false">
       <!-- Header sekarang satu blok: giliran yang sedang berjalan jadi elemen utama, bukan
-           "ROUND n" yang diisi manual.advantages di bawahnya mengikuti giliran itu. -->
+           "ROUND n" yang diisi manual. Advantage di bawahnya mengikuti giliran itu. -->
       <header class="draft-header">
         <div class="draft-header-left">
           <span class="draft-phase" id="draft-phase" data-phase="ban">BAN</span>

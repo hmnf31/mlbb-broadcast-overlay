@@ -97,6 +97,12 @@ function heroSlot(heroId, options = {}) {
   if (options.next) {
     item.dataset.next = 'true';
     item.dataset.nextLabel = options.kind === 'ban' ? 'BAN' : 'PICK';
+    // Tag-nya elemen sungguhan, bukan ::after: slot ban sudah memakai ::after untuk tanda
+    // silang, dan slot yang kosong tidak punya .hero-name untuk ditumpuki label.
+    const tag = document.createElement('span');
+    tag.className = 'hero-next';
+    tag.textContent = item.dataset.nextLabel;
+    item.append(tag);
   }
   if (heroId) {
     const entry = Analytics.entryFor(matrix, heroId);

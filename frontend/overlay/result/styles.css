@@ -16,12 +16,16 @@ body {
   height: 100%;
   background: transparent;
   overflow: hidden;
-  font-family: 'Segoe UI', Tahoma, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Kanvas desain 1280x720 yang diskalakan ke lebar layar, sama seperti overlay gameplay
    supaya ukuran huruf di kedua browser source terasa sama. */
 .result-shell {
+  /* Token warna, font, dan bentuknya milik frontend/shared/apex.css. Yang didefinisikan di
+     sini hanya alias lokal yang dipakai file ini. */
+  --muted: var(--on-surface-variant);
+
   position: relative;
   width: min(100vw, calc(100vh * 16 / 9));
   height: min(100vh, calc(100vw * 9 / 16));
@@ -32,9 +36,11 @@ body {
   justify-content: center;
   gap: calc(26px * var(--design-scale));
   overflow: hidden;
-  color: #edf4ff;
+  color: var(--on-surface);
   text-align: center;
-  background: radial-gradient(circle at 50% 30%, rgba(24, 44, 66, 0.92), rgba(6, 12, 18, 0.96) 70%);
+  background:
+    radial-gradient(circle at 50% 30%, rgb(0 229 255 / 8%), transparent 65%),
+    linear-gradient(180deg, rgb(15 19 29 / 95%), rgb(10 14 24 / 97%));
 }
 
 .result-shell[data-visible='true'] {
@@ -47,32 +53,46 @@ body {
   gap: calc(6px * var(--design-scale));
 }
 
+/* Headline Anton dengan gradient emas-ke-cyan, persis perlakuan "metallic" di mockup MVP.
+   Ini elemen paling besar di layar, jadi yang dijaga bukan ukuran angkanya melainkan warnanya:
+   VICTORY dan DEFEAT harus langsung terbaca berbeda dari teks lain di layar. */
 .result-headline {
+  font-family: var(--font-display);
   font-size: calc(84px * var(--design-scale));
-  font-weight: 900;
-  letter-spacing: 0.06em;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   line-height: 1;
-  /* Token, bukan hex: file ini sebelumnya punya dua emas (#ffd76a di sini, --gold #f4ce00)
-     dan dua merah (#ff6666 di sini, --rose #ff525f) dalam satu overlay yang sama. */
-  color: var(--gold);
-  text-shadow: 0 calc(4px * var(--design-scale)) calc(24px * var(--design-scale)) rgba(0, 0, 0, 0.65);
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-bright) 55%, var(--cyan-fixed) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgb(244 206 0 / 40%));
 }
 
 .result-shell[data-outcome='defeat'] .result-headline {
-  color: #ff7a7a;
+  background: linear-gradient(90deg, var(--rose) 0%, var(--rose-light) 60%, var(--on-surface-variant) 100%);
+  filter: drop-shadow(0 0 16px rgb(255 82 95 / 45%));
 }
 
 .result-subline {
-  font-size: calc(22px * var(--design-scale));
-  color: #b9cad8;
+  font-family: var(--font-body);
+  font-size: calc(15px * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
 }
 
 .result-score {
   display: flex;
   align-items: center;
   gap: calc(22px * var(--design-scale));
-  font-size: calc(64px * var(--design-scale));
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: calc(56px * var(--design-scale));
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 .result-team {
@@ -82,8 +102,11 @@ body {
 }
 
 .result-team-name {
-  font-size: calc(24px * var(--design-scale));
-  color: #9fb3c4;
+  font-family: var(--font-display);
+  font-size: calc(28px * var(--design-scale));
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--on-surface);
   max-width: calc(260px * var(--design-scale));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,15 +114,20 @@ body {
 }
 
 .result-team-blue .result-team-score {
-  color: #5aa9ff;
+  color: var(--cyan);
+  text-shadow: 0 0 18px rgb(0 229 255 / 45%);
 }
 
 .result-team-red .result-team-score {
   color: var(--rose);
+  text-shadow: 0 0 18px rgb(255 82 95 / 45%);
 }
 
+/* Pemisah memakai mono supaya ":" duduk di tinggi garis yang sama dengan angka tim. */
 .result-separator {
-  color: #6b7c8c;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--outline);
 }
 
 .result-stats {
@@ -107,9 +135,11 @@ body {
   gap: calc(28px * var(--design-scale));
   margin: 0;
   padding: calc(14px * var(--design-scale)) calc(24px * var(--design-scale));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: calc(12px * var(--design-scale));
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  background: rgb(10 14 24 / 85%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
 }
 
 .result-stat {
@@ -120,36 +150,34 @@ body {
 }
 
 .result-stat dt {
-  font-size: calc(13px * var(--design-scale));
-  color: #8ea4b6;
+  font-family: var(--font-body);
+  font-size: calc(10px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--on-surface-variant);
 }
 
+/* Angka ringkasan match semua mono: game, durasi, dan damage dibaca sekilas, dan lebar
+   digitnya harus tetap supaya tidak bergeser. */
 .result-stat dd {
   margin: 0;
-  font-size: calc(24px * var(--design-scale));
+  font-family: var(--font-mono);
+  font-size: calc(20px * var(--design-scale));
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--on-surface);
 }
 
 .result-stat-mvp dd {
   color: var(--gold);
+  text-shadow: 0 0 12px rgb(244 206 0 / 45%);
 }
 
 /* ---------------------------------------------------------------------------
    Fase 3: stage hasil. `data-mode` di shell yang menentukan panel mana yang tampil,
    jadi operator cukup mengganti satu field di control panel untuk berganti layar.
    --------------------------------------------------------------------------- */
-
-.result-shell {
-  --gold: #f4ce00;
-  --rose: #ff525f;
-  --cyan: #00e5ff;
-  --surface: #0f131d;
-  --surface-low: #171b26;
-  --surface-high: #262a35;
-  --muted: #9fb3c8;
-}
 
 .result-stage {
   flex: 1;
@@ -194,21 +222,37 @@ body {
 
 /* --- kartu MVP ------------------------------------------------------------ */
 
+/* Kartu MVP: panel rounded-xl dengan rim emas di tepi atas, seperti bio card di mockup.
+   Rim itu penanda non-faksi: emas di sini berarti "pres-tige", bukan salah satu tim. */
 .mvp-panel {
+  position: relative;
   display: grid;
   grid-template-columns: calc(300px * var(--design-scale)) 1fr;
   gap: calc(16px * var(--design-scale));
   padding: calc(14px * var(--design-scale));
-  border-radius: calc(12px * var(--design-scale));
-  background: linear-gradient(140deg, rgba(38, 42, 53, 0.9), rgba(15, 19, 29, 0.94));
-  border: 1px solid rgba(244, 206, 0, 0.28);
-  box-shadow: 0 0 calc(30px * var(--design-scale)) rgba(244, 206, 0, 0.12);
+  border-radius: var(--radius-lg);
+  background: rgb(23 27 38 / 92%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 60%);
+  overflow: hidden;
   min-height: 0;
+}
+
+.mvp-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(3px * var(--design-scale));
+  background: linear-gradient(90deg, var(--gold), var(--cyan) 55%, transparent);
+  box-shadow: 0 0 10px rgb(244 206 0 / 80%);
 }
 
 .mvp-hero {
   position: relative;
-  border-radius: calc(8px * var(--design-scale));
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface-high);
 }
@@ -240,23 +284,32 @@ body {
   padding: calc(8px * var(--design-scale));
 }
 
+/* Nama pemain Anton uppercase: di mockup ini elemen terbesar di dalam kartu MVP. */
 .mvp-player {
-  font-size: calc(20px * var(--design-scale));
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: calc(34px * var(--design-scale));
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .mvp-heroname {
-  font-size: calc(12px * var(--design-scale));
-  color: var(--gold);
-  letter-spacing: 0.1em;
+  font-family: var(--font-body);
+  font-size: calc(11px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--gold-bright);
   text-transform: uppercase;
 }
 
 .mvp-role {
+  font-family: var(--font-mono);
   font-size: calc(10px * var(--design-scale));
+  font-weight: 500;
+  letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
 }
 
 .mvp-body {
@@ -272,18 +325,24 @@ body {
   gap: calc(6px * var(--design-scale));
 }
 
+/* Angka rating adalah elemen terbesar di kartu ini, sama seperti di mockup. */
 .mvp-rating-value {
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: calc(40px * var(--design-scale));
-  font-weight: 700;
-  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: calc(48px * var(--design-scale));
+  font-weight: 400;
+  letter-spacing: 0.02em;
   line-height: 1;
+  color: var(--gold-text);
+  text-shadow: 0 0 28px rgb(244 206 0 / 65%);
 }
 
 .mvp-rating-label {
+  font-family: var(--font-body);
   font-size: calc(12px * var(--design-scale));
-  letter-spacing: 0.2em;
-  color: var(--muted);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
 }
 
 .mvp-kda {
@@ -298,16 +357,22 @@ body {
 }
 
 .mvp-kda dt {
+  font-family: var(--font-body);
   font-size: calc(10px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
-  letter-spacing: 0.14em;
 }
 
+/* K/D/A mono: tiga angka ini dibandingkan satu sama lain, jadi lebar digitnya harus sama. */
 .mvp-kda dd {
   margin: 0;
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: calc(22px * var(--design-scale));
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--on-surface);
 }
 
 .mvp-stats {
@@ -322,21 +387,26 @@ body {
   flex-direction: column;
   gap: calc(2px * var(--design-scale));
   padding: calc(5px * var(--design-scale)) calc(7px * var(--design-scale));
-  border-radius: calc(5px * var(--design-scale));
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  background: var(--surface-lowest);
 }
 
 .mvp-stats dt {
+  font-family: var(--font-mono);
   font-size: calc(9px * var(--design-scale));
+  font-weight: 500;
+  letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
 .mvp-stats dd {
   margin: 0;
+  font-family: var(--font-mono);
   font-size: calc(14px * var(--design-scale));
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--on-surface);
 }
 
 .mvp-items {
@@ -349,9 +419,9 @@ body {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border-radius: calc(5px * var(--design-scale));
+  border-radius: var(--radius-sm);
   background: var(--surface-high);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px var(--surface-highest);
 }
 
 .mvp-meta-list {
@@ -370,15 +440,20 @@ body {
 
 .mvp-meta-list dt {
   flex: none;
+  font-family: var(--font-body);
   font-size: calc(9px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
 .mvp-meta-list dd {
   margin: 0;
+  font-family: var(--font-body);
   font-size: calc(11px * var(--design-scale));
+  font-weight: 700;
+  color: var(--on-surface);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -386,8 +461,12 @@ body {
 
 .mvp-signature {
   margin: 0;
+  padding: calc(var(--space-sm) * var(--design-scale)) calc(var(--space-md) * var(--design-scale));
+  border-radius: var(--radius-sm);
+  background: var(--surface-lowest);
+  font-family: var(--font-body);
   font-size: calc(11px * var(--design-scale));
-  color: var(--cyan);
+  color: var(--cyan-light);
   line-height: 1.4;
 }
 
@@ -402,36 +481,59 @@ body {
   gap: calc(14px * var(--design-scale));
 }
 
+/* Baris tim pakai rel cahaya di sisi tim, sama seperti kartu pick di draft overlay. Rel ini
+   yang membuat kolom biru dan merah bisa dibedakan tanpa membaca nama timnya. */
 .board-team {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: calc(6px * var(--design-scale));
   padding: calc(10px * var(--design-scale));
-  border-radius: calc(10px * var(--design-scale));
-  background: rgba(23, 27, 38, 0.9);
-  border: 1px solid var(--surface-high);
+  padding-inline-start: calc(var(--space-md) * var(--design-scale));
+  border-radius: var(--radius-lg);
+  background: rgb(23 27 38 / 90%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
+  overflow: hidden;
   min-height: 0;
 }
 
-.board-team-blue {
-  border-top: calc(2px * var(--design-scale)) solid var(--cyan);
+.board-team-blue::before,
+.board-team-red::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: calc(6px * var(--design-scale));
 }
 
-.board-team-red {
-  border-top: calc(2px * var(--design-scale)) solid var(--rose);
+.board-team-blue::before {
+  background: var(--cyan);
+  box-shadow: 0 0 16px var(--cyan);
+}
+
+.board-team-red::before {
+  background: var(--rose);
+  box-shadow: 0 0 16px var(--rose);
 }
 
 .board-team-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: calc(13px * var(--design-scale));
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: calc(11px * var(--design-scale));
+  font-weight: 900;
   letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .board-team-name {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: calc(20px * var(--design-scale));
+  letter-spacing: 0.02em;
 }
 
 .board-team-blue .board-team-series {
@@ -442,10 +544,12 @@ body {
   color: var(--rose);
 }
 
+/* Skor seri pakai diamond, bukan angka: bentuknya langsung terbaca sebagai penghitung seri
+   tanpa harus membacanya, dan tidak menabrak nama tim yang panjang. */
 .board-team-series {
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: calc(18px * var(--design-scale));
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-xs) * var(--design-scale));
 }
 
 .board-rows {
@@ -458,30 +562,33 @@ body {
 }
 
 .board-row {
+  position: relative;
   display: grid;
   grid-template-columns: calc(30px * var(--design-scale)) minmax(72px, 1.1fr) minmax(48px, 0.8fr) repeat(2, minmax(36px, 0.55fr)) calc(34px * var(--design-scale));
   align-items: center;
   gap: calc(6px * var(--design-scale));
   padding: calc(4px * var(--design-scale)) calc(6px * var(--design-scale));
-  border-radius: calc(5px * var(--design-scale));
-  background: rgba(255, 255, 255, 0.035);
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
 }
 
 .board-row[data-mvp='true'] {
-  background: rgba(244, 206, 0, 0.12);
-  border: 1px solid rgba(244, 206, 0, 0.3);
+  background: rgb(244 206 0 / 12%);
+  box-shadow: inset 0 0 0 1px rgb(244 206 0 / 30%);
 }
 
 .board-row-hero {
   width: calc(30px * var(--design-scale));
   height: calc(30px * var(--design-scale));
-  border-radius: calc(5px * var(--design-scale));
+  border-radius: var(--radius-sm);
   object-fit: cover;
   background: var(--surface-high);
 }
 
 .board-row-name {
+  font-family: var(--font-body);
   font-size: calc(11px * var(--design-scale));
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -489,21 +596,28 @@ body {
 
 .board-row-hero-name {
   display: block;
+  font-family: var(--font-mono);
   font-size: calc(8px * var(--design-scale));
+  font-weight: 500;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
+/* Semua angka baris mono supaya kolom K/D/A bisa dibandingkan per baris tanpa_read
+   mengoreksi posisi kolom secara manual. */
 .board-row-kda {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: calc(11px * var(--design-scale));
+  font-weight: 700;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
 .board-row-num {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: calc(11px * var(--design-scale));
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -519,9 +633,9 @@ body {
   gap: calc(4px * var(--design-scale));
   margin: 0;
   padding: calc(6px * var(--design-scale));
-  border-radius: calc(8px * var(--design-scale));
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--surface-high);
+  border-radius: var(--radius);
+  background: var(--surface-lowest);
+  box-shadow: inset 0 0 0 1px var(--surface-high);
 }
 
 .mvp-radar[hidden] {
@@ -541,24 +655,26 @@ body {
 
 .radar-ring {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: var(--surface-highest);
   stroke-width: 1;
 }
 
 .radar-spoke {
-  stroke: rgba(255, 255, 255, 0.1);
+  stroke: var(--surface-highest);
   stroke-width: 1;
 }
 
+/* Isi radar emas: lima sumbu ini ukuran performa pemain, jadi emas non-faksi di sini. */
 .radar-fill {
-  fill: rgba(244, 206, 0, 0.28);
-  stroke: var(--gold);
-  stroke-width: 1.5;
+  fill: rgb(244 206 0 / 35%);
+  stroke: var(--gold-bright);
+  stroke-width: 2;
   stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px rgb(244 206 0 / 60%));
 }
 
 .radar-dot {
-  fill: var(--gold);
+  fill: var(--gold-bright);
 }
 
 .mvp-radar-legend {
@@ -566,7 +682,9 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: calc(2px * var(--design-scale)) calc(7px * var(--design-scale));
+  font-family: var(--font-mono);
   font-size: calc(8px * var(--design-scale));
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -628,9 +746,11 @@ body {
   flex-direction: column;
   gap: calc(8px * var(--design-scale));
   padding: calc(10px * var(--design-scale));
-  border-radius: calc(10px * var(--design-scale));
-  background: rgba(23, 27, 38, 0.9);
-  border: 1px solid var(--surface-high);
+  border-radius: var(--radius-lg);
+  background: rgb(10 14 24 / 85%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 45%);
 }
 
 .objective-list {
@@ -645,23 +765,31 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: calc(8px * var(--design-scale));
+  padding: calc(var(--space-xs) * var(--design-scale)) calc(var(--space-sm) * var(--design-scale));
+  border-radius: var(--radius-sm);
+  background: var(--surface-lowest);
 }
 
 .objective-row dt {
+  font-family: var(--font-body);
   font-size: calc(10px * var(--design-scale));
+  font-weight: 900;
+  letter-spacing: 0.12em;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
+/* Turtle/Lord/Tower dipakai nilai langsung tanpa filter, jadi angkanya bisa dihitung mata.
+   Mono menjaga posisinya tetap. */
 .objective-row dd {
   margin: 0;
   display: flex;
   align-items: baseline;
   gap: calc(4px * var(--design-scale));
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: calc(15px * var(--design-scale));
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .objective-row dd span:first-child {
@@ -674,15 +802,16 @@ body {
 
 .objective-row dd i {
   font-style: normal;
-  color: var(--muted);
+  color: var(--outline);
   font-size: calc(11px * var(--design-scale));
 }
 
 .result-caster {
   margin: 0;
+  font-family: var(--font-body);
   font-size: calc(11px * var(--design-scale));
   line-height: 1.4;
-  color: #dfe2f1;
+  color: var(--on-surface);
 }
 
 .result-caster:empty,
@@ -692,8 +821,10 @@ body {
 
 .result-stage-label {
   margin: 0;
+  font-family: var(--font-mono);
   font-size: calc(9px * var(--design-scale));
-  letter-spacing: 0.16em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }

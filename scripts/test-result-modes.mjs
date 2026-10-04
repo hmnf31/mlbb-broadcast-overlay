@@ -1,7 +1,8 @@
 // Fase 3 mode test: kartu MVP dan scoreboard 10 pemain harus membaca field baru (gpm,
 // damage%, turret, radar, objectives) dan mode switch harus benar-benar menukar panel.
-import { readFile } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
+import path from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\//, '');
 
@@ -98,6 +99,32 @@ function snapshot(overrides = {}, resultOverrides = {}) {
   };
 }
 
+section('Token desain dan font offline');
+{
+  const { document, errors } = await boot();
+
+  // Font tidak boleh datang dari CDN: OBS sering dipakai tanpa internet, dan CDN yang gagal
+  // hanya diam-diam mengubah tipografi tanpa satu baris pun di log.
+  const apex = await readFile(`${ROOT}/frontend/shared/apex.css`, 'utf8');
+  const fontUrls = [...apex.matchAll(/url\('(\/assets\/fonts\/[^']+)'\)/g)].map((match) => match[1]);
+  check('apex.css memuat font secara lokal', fontUrls.length >= 7, String(fontUrls.length));
+  check('tidak ada font dari CDN', !/https?:\/\//.test(apex.replace(/fonts\.googleapis|fonts\.gstatic/g, '')));
+
+  const missing = [];
+  for (const url of new Set(fontUrls)) {
+    try {
+      await access(path.join(ROOT, url.replace(/^\//, '').replace(/\//g, path.sep)));
+    } catch {
+      missing.push(url);
+    }
+  }
+  check('semua file font ada di disk', missing.length === 0, missing.join(', '));
+
+  const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map((node) => node.getAttribute('href'));
+  check('token desain ikut dimuat', links.includes('/frontend/shared/apex.css'), links.join(', '));
+  check('boot tetap tanpa error', errors.length === 0, errors.join(' | '));
+}
+
 section('Mode MVP');
 {
   const { document, errors, sockets } = await boot();
@@ -171,10 +198,39 @@ section('Mode scoreboard');
   check('baris merah terisi', redRows.length === 1, String(redRows.length));
   check('baris merah KDA', redRows[0].querySelector('.board-row-kda').textContent === '5/6/9');
 
-  check('seri biru di board', document.getElementById('board-blue-series').textContent === '1');
-  check('seri merah di board', document.getElementById('board-red-series').textContent === '0');
-  check('nama tim biru di board', document.getElementById('board-blue-name').textContent === 'Blue Phoenix');
-  check('nama tim merah di board', document.getElementById('board-red-name').textContent === 'Red Viper');
+  // Skor seri digambar sebagai diamond, bukan angka. Nilai aslinya tetap ada di `data-score`
+// supaya tidak hilang informasi.
+const blueSeries = document.getElementById('board-blue-series');
+const redSeries = document.getElementById('board-red-series');
+check('seri biru jadi diamond', blueSeries.dataset.score === '1', blueSeries.dataset.score);
+check('satu diamond untuk BO2', blueSeries.children.length === 1, String(blueSeries.children.length));
+check('diamond biru menyala', blueSeries.children[0]?.dataset.state === 'win', blueSeries.children[0]?.dataset.state);
+check('seri merah jadi diamond', redSeries.dataset.score === '0', redSeries.dataset.score);
+check('diamond merah padam', redSeries.children[0]?.dataset.state === 'lose', redSeries.children[0]?.dataset.state);
+check('seri merah punya warna tim', redSeries.children[0]?.dataset.side === 'red');
+check('nama tim biru di board', document.getElementById('board-blue-name').textContent === 'Blue Phoenix');
+check('nama tim merah di board', document.getElementById('board-red-name').textContent === 'Red Viper');
+
+  // Tanpa `bestOf` panjang seri tidak diketahui, jadi angka biasa dipakai. Menebak jumlah
+  // diamond akan membuat layar ini salah dan tidak ada yang mengoreksinya.
+  sockets[0].onMessage({
+    type: 'snapshot',
+    payload: { ...snapshot({ match: {} }), result: { visible: true, mode: 'scoreboard', headline: 'VICTORY', seriesScore: { blue: 2, red: 1 } } },
+  });
+  check('tanpa bestOf seri kembali ke angka',
+    document.getElementById('board-blue-series').textContent === '2',
+    document.getElementById('board-blue-series').textContent);
+
+  // BO3 = dua diamond.
+  sockets[0].onMessage({
+    type: 'snapshot',
+    payload: {
+      ...snapshot({ match: { bo2: { enabled: true, bestOf: 3, games: [{ winner: 'blue' }, { winner: null }, { winner: null }] } } }),
+      result: { visible: true, mode: 'scoreboard', headline: 'VICTORY' },
+    },
+  });
+  check('BO3 punya dua diamond', document.getElementById('board-blue-series').children.length === 2,
+    String(document.getElementById('board-blue-series').children.length));
 }
 
 section('MVP fallback dan keamanan path');
